@@ -4,6 +4,7 @@ const prisma = require('../config/db');
 const ApiError = require('../utils/apiError');
 const { signToken } = require('../utils/jwt');
 const { sendResetPasswordEmail } = require('../utils/mailer');
+const { computeResponseRate } = require('../utils/metrics');
 
 const ACCOUNT_TYPES = [
   'engineer',
@@ -74,10 +75,11 @@ async function register(req, res) {
 async function login(req, res) {
   const { phone, password } = req.body;
   if (!phone || !password) {
-    throw new ApiError(400, 'رقم الموبايل وكلمة المرور مطلوبين');
+    throw new ApiError(400, 'رقم الموبايل أو الإيميل وكلمة المرور مطلوبين');
   }
 
-  const user = await prisma.user.findUnique({ where: { phone } });
+  const identifier = phone.trim();
+  const user = await prisma.user.findFirst({ where: { OR: [{ phone: identifier }, { email: identifier }] } });
   if (!user) {
     throw new ApiError(401, 'رقم الموبايل أو كلمة المرور غلط');
   }
@@ -142,7 +144,8 @@ async function resetPassword(req, res) {
 async function me(req, res) {
   const user = await prisma.user.findUnique({ where: { id: req.user.id } });
   if (!user) throw new ApiError(404, 'المستخدم غير موجود');
-  res.json({ success: true, user: publicUser(user) });
+  const responseRate = await computeResponseRate(user.id);
+  res.json({ success: true, user: { ...publicUser(user), responseRate } });
 }
 
 module.exports = { register, login, me, forgotPassword, resetPassword, ACCOUNT_TYPES, publicUser };

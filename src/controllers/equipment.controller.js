@@ -44,7 +44,10 @@ async function getOne(req, res) {
 }
 
 async function create(req, res) {
-  const { title, category, listingType, description, pricePerDay, salePrice, governorate, images } = req.body;
+  const {
+    title, category, listingType, description, pricePerDay, salePrice, governorate, images,
+    serialNumber, ownershipDocUrl, serialNumberPhotoUrl,
+  } = req.body;
 
   if (!title || !category || !listingType) {
     throw new ApiError(400, 'اسم الجهاز والفئة ونوع الإعلان مطلوبين');
@@ -61,6 +64,9 @@ async function create(req, res) {
       salePrice,
       governorate,
       images: images || [],
+      serialNumber: serialNumber || undefined,
+      ownershipDocUrl: ownershipDocUrl || undefined,
+      serialNumberPhotoUrl: serialNumberPhotoUrl || undefined,
     },
   });
 

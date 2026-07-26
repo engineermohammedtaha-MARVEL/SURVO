@@ -135,6 +135,9 @@ model Equipment {
   governorate     String?
   available       Boolean           @default(true)
   images          String[]          @default([])
+  serialNumber    String?
+  ownershipDocUrl String?           // سند الملكية أو شهادة المعايرة
+  serialNumberPhotoUrl String?      // صورة الرقم التسلسلي على الجهاز
   requestsCount   Int               @default(0)
   rating          Float             @default(0)
   createdAt       DateTime          @default(now())

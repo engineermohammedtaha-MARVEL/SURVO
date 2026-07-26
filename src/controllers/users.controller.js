@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const ApiError = require('../utils/apiError');
 const { publicUser } = require('./auth.controller');
+const { computeResponseRate } = require('../utils/metrics');
 
 async function getPublicProfile(req, res) {
   const user = await prisma.user.findUnique({
@@ -10,7 +11,8 @@ async function getPublicProfile(req, res) {
     },
   });
   if (!user) throw new ApiError(404, 'المستخدم غير موجود');
-  res.json({ success: true, user: publicUser(user) });
+  const responseRate = await computeResponseRate(user.id);
+  res.json({ success: true, user: { ...publicUser(user), responseRate } });
 }
 
 async function updateMe(req, res) {
