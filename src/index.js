@@ -1,7 +1,6 @@
 require('dotenv').config();
 require('express-async-errors');
 
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -26,7 +25,6 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use('/uploads', express.static(path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads')));
 
 // حماية بسيطة من الطلبات الكتير (خصوصًا على auth)
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 });
