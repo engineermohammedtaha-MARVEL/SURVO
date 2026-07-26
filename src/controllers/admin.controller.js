@@ -47,4 +47,38 @@ async function rejectUser(req, res) {
   res.json({ success: true, user: { id: updated.id, accountStatus: updated.accountStatus } });
 }
 
-module.exports = { listPendingUsers, approveUser, rejectUser };
+async function listPendingDeviceReports(req, res) {
+  const reports = await prisma.deviceReport.findMany({
+    where: { moderationStatus: 'pending' },
+    orderBy: { createdAt: 'desc' },
+    include: { reporter: { select: { id: true, fullName: true, phone: true } } },
+  });
+  res.json({ success: true, reports });
+}
+
+async function approveDeviceReport(req, res) {
+  const report = await prisma.deviceReport.findUnique({ where: { id: req.params.id } });
+  if (!report) throw new ApiError(404, 'البلاغ غير موجود');
+
+  const updated = await prisma.deviceReport.update({
+    where: { id: req.params.id },
+    data: { moderationStatus: 'approved' },
+  });
+  res.json({ success: true, report: { id: updated.id, moderationStatus: updated.moderationStatus } });
+}
+
+async function rejectDeviceReport(req, res) {
+  const report = await prisma.deviceReport.findUnique({ where: { id: req.params.id } });
+  if (!report) throw new ApiError(404, 'البلاغ غير موجود');
+
+  const updated = await prisma.deviceReport.update({
+    where: { id: req.params.id },
+    data: { moderationStatus: 'rejected' },
+  });
+  res.json({ success: true, report: { id: updated.id, moderationStatus: updated.moderationStatus } });
+}
+
+module.exports = {
+  listPendingUsers, approveUser, rejectUser,
+  listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
+};

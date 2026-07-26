@@ -2,14 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>SURVO — لوحة موافقة الحسابات</title>
+<title>SURVO — لوحة الإدارة</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-  <h1>لوحة موافقة الحسابات — SURVO</h1>
-  <div class="subtitle">الحسابات الجديدة اللي محتاجة مراجعة قبل ما تشتغل</div>
+  <h1>لوحة الإدارة — SURVO</h1>
+  <div class="subtitle">الحسابات وبلاغات الأجهزة اللي محتاجة مراجعة</div>
 
   <div class="secret-row">
     <input type="password" id="secretInput" placeholder="الصق مفتاح الأدمن (ADMIN_SECRET)">
@@ -17,8 +17,13 @@
   </div>
   <div id="errorBox" class="error"></div>
 
+  <h2 class="section-title">الحسابات المعلّقة</h2>
   <div id="cardsWrap"></div>
   <div id="emptyBox" class="empty" style="display:none;">مفيش حسابات محتاجة مراجعة دلوقتي</div>
+
+  <h2 class="section-title">بلاغات الأجهزة المفقودة/المسروقة</h2>
+  <div id="reportsWrap"></div>
+  <div id="reportsEmptyBox" class="empty" style="display:none;">مفيش بلاغات محتاجة مراجعة دلوقتي</div>
 
 <script src="admin.js"></script>
 </body>

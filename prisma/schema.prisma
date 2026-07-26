@@ -80,6 +80,17 @@ enum AccountStatus {
   rejected
 }
 
+enum DeviceReportStatus {
+  stolen
+  lost
+}
+
+enum ModerationStatus {
+  pending
+  approved
+  rejected
+}
+
 // ============ MODELS ============
 
 model User {
@@ -118,6 +129,7 @@ model User {
   reviewsReceived   Review[]      @relation("ReviewsReceived")
   supportTickets    SupportTicket[]
   notifications     Notification[]
+  deviceReports     DeviceReport[]
 
   @@map("users")
 }
@@ -253,6 +265,26 @@ model SupportTicket {
   createdAt     DateTime @default(now())
 
   @@map("support_tickets")
+}
+
+model DeviceReport {
+  id                String              @id @default(uuid())
+  reporterId        String
+  reporter          User                @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  category          EquipmentCategory
+  brand             String?
+  serialNumber      String
+  status            DeviceReportStatus
+  details           String?
+  contactPhone      String?
+  policeReportUrl   String?
+  ownershipDocUrl   String?
+  moderationStatus  ModerationStatus    @default(pending)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([serialNumber])
+  @@map("device_reports")
 }
 
 model Notification {

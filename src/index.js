@@ -20,6 +20,7 @@ const reviewsRoutes = require('./routes/reviews.routes');
 const supportRoutes = require('./routes/support.routes');
 const uploadsRoutes = require('./routes/uploads.routes');
 const adminRoutes = require('./routes/admin.routes');
+const deviceReportsRoutes = require('./routes/deviceReports.routes');
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/api/reviews', reviewsRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/device-reports', deviceReportsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

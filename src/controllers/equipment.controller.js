@@ -53,6 +53,15 @@ async function create(req, res) {
     throw new ApiError(400, 'اسم الجهاز والفئة ونوع الإعلان مطلوبين');
   }
 
+  if (serialNumber && serialNumber.trim()) {
+    const stolenReport = await prisma.deviceReport.findFirst({
+      where: { serialNumber: serialNumber.trim(), moderationStatus: 'approved' },
+    });
+    if (stolenReport) {
+      throw new ApiError(409, 'الرقم التسلسلي ده متبلّغ عنه كجهاز ' + (stolenReport.status === 'stolen' ? 'مسروق' : 'مفقود') + '، مش هينفع تنشر إعلان بيه');
+    }
+  }
+
   const item = await prisma.equipment.create({
     data: {
       ownerId: req.user.id,

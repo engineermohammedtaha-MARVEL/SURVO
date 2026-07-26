@@ -109,12 +109,99 @@ async function act(id, action) {
   }
 }
 
-document.getElementById('loadBtn').addEventListener('click', loadUsers);
+const DEVICE_CATEGORY_LABELS = {
+  totalstation: 'توتال ستاشن',
+  gps: 'GPS',
+  level: 'ميزان',
+  laser: 'ليزر سكانر',
+  accessories: 'اكسسوارات',
+};
+
+function reportCardEl(r) {
+  const date = new Date(r.createdAt).toLocaleString('ar-EG');
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'report-' + r.id;
+
+  const docs = [];
+  if (r.policeReportUrl) docs.push(['📎 محضر الشرطة', r.policeReportUrl]);
+  if (r.ownershipDocUrl) docs.push(['📄 سند الملكية', r.ownershipDocUrl]);
+
+  card.innerHTML =
+    '<div class="card-header">' +
+    '<div class="card-name">' + (DEVICE_CATEGORY_LABELS[r.category] || r.category) + (r.brand ? ' — ' + r.brand : '') + '</div>' +
+    '<div class="card-date">' + date + '</div>' +
+    '</div>' +
+    '<div class="card-meta">' +
+    '<span class="report-status ' + r.status + '">' + (r.status === 'stolen' ? 'مسروق' : 'مفقود') + '</span>' +
+    '<span>🔢 ' + r.serialNumber + '</span>' +
+    '<span>👤 ' + (r.reporter ? r.reporter.fullName : '—') + '</span>' +
+    '<span>📱 ' + (r.contactPhone || (r.reporter ? r.reporter.phone : '—')) + '</span>' +
+    '</div>' +
+    (r.details ? '<div class="card-bio">' + r.details + '</div>' : '') +
+    '<div class="docs-label">المستندات المرفوعة</div>' +
+    (docs.length
+      ? '<div class="docs-row">' + docs.map(function (d) {
+          return '<a class="doc-link" target="_blank" rel="noopener" href="' + d[1] + '">' + d[0] + '</a>';
+        }).join('') + '</div>'
+      : '<div class="no-docs">⚠ مفيش مستندات مرفوعة</div>') +
+    '<div class="actions"></div>';
+
+  const actionsCell = card.querySelector('.actions');
+  const approveBtn = document.createElement('button');
+  approveBtn.className = 'approve';
+  approveBtn.textContent = '✓ اعتماد البلاغ';
+  approveBtn.addEventListener('click', function () { actReport(r.id, 'approve'); });
+
+  const rejectBtn = document.createElement('button');
+  rejectBtn.className = 'reject';
+  rejectBtn.textContent = '✕ رفض';
+  rejectBtn.addEventListener('click', function () { actReport(r.id, 'reject'); });
+
+  actionsCell.appendChild(approveBtn);
+  actionsCell.appendChild(rejectBtn);
+  return card;
+}
+
+async function loadDeviceReports() {
+  const errorBox = document.getElementById('errorBox');
+  try {
+    const data = await apiCall('/device-reports/pending');
+    const wrap = document.getElementById('reportsWrap');
+    const empty = document.getElementById('reportsEmptyBox');
+    wrap.innerHTML = '';
+    if (!data.reports.length) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.reports.forEach(function (r) { wrap.appendChild(reportCardEl(r)); });
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر تحميل البلاغات — تأكد من صحة المفتاح';
+  }
+}
+
+async function actReport(id, action) {
+  try {
+    await apiCall('/device-reports/' + id + '/' + action, { method: 'POST' });
+    const card = document.getElementById('report-' + id);
+    if (card) card.remove();
+  } catch (err) {
+    alert(err.message || 'حصل خطأ');
+  }
+}
+
+function loadAll() {
+  loadUsers();
+  loadDeviceReports();
+}
+
+document.getElementById('loadBtn').addEventListener('click', loadAll);
 
 window.addEventListener('DOMContentLoaded', function () {
   const saved = localStorage.getItem('survo_admin_secret');
   if (saved) {
     document.getElementById('secretInput').value = saved;
-    loadUsers();
+    loadAll();
   }
 });

@@ -30,3 +30,7 @@ button:disabled { opacity:0.5; cursor:default; }
 }
 .doc-link:hover { background:#e2e6ee; }
 .no-docs { font-size:11.5px; color:#b3261e; margin-top:12px; }
+.section-title { font-size:15px; margin-top:26px; margin-bottom:8px; }
+.report-status { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; }
+.report-status.stolen { background:#fde3e3; color:#b3261e; }
+.report-status.lost { background:#fff3d6; color:#a06a00; }
