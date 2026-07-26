@@ -100,6 +100,8 @@ model User {
   qualificationUrl  String?       // المؤهل الدراسي
   commercialRecordUrl String?     // السجل التجاري (للمكاتب/الشركات)
   avatarUrl         String?
+  resetTokenHash    String?       // هاش توكن إعادة تعيين كلمة المرور
+  resetTokenExpiresAt DateTime?
   rating            Float         @default(0)
   ratingCount       Int           @default(0)
   createdAt         DateTime      @default(now())
