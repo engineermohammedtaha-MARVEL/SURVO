@@ -1,0 +1,252 @@
+// SURVO - Prisma schema
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ ENUMS ============
+
+enum AccountType {
+  engineer            // مهندس مساحة
+  specialist          // أخصائي مساحة
+  surveyor_academic   // مساح عام أكاديمي
+  surveyor_professional // مساح مهني
+  assistant           // مساعد مساح
+  office              // مكتب / شركة
+  general             // تسجيل عام
+}
+
+enum EquipmentCategory {
+  totalstation
+  gps
+  level
+  laser
+  accessories
+}
+
+enum ListingType {
+  rent
+  sale
+}
+
+enum RequestType {
+  rent
+  buy
+}
+
+enum RequestStatus {
+  open
+  offered
+  accepted
+  completed
+  cancelled
+}
+
+enum JobType {
+  engineer
+  surveyor
+  assistant
+  totalstation
+  gps
+  level
+}
+
+enum JobWorkType {
+  full   // شهري / دوام كامل
+  daily  // يومي
+  remote // عن بعد
+}
+
+enum JobStatus {
+  open
+  closed
+}
+
+enum VerificationStatus {
+  unverified
+  pending
+  verified
+}
+
+// ============ MODELS ============
+
+model User {
+  id                String        @id @default(uuid())
+  fullName          String        // اسم كامل أو اسم المكتب/الشركة
+  phone             String        @unique
+  email             String?       @unique
+  passwordHash      String
+  accountType       AccountType
+  bio               String?       // نبذة عنك
+  specialties       String[]      @default([]) // التخصصات
+  governorate       String?
+  verification       VerificationStatus @default(unverified)
+  unionCardUrl      String?       // كارنيه النقابة (للمهندسين)
+  avatarUrl         String?
+  rating            Float         @default(0)
+  ratingCount       Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  equipment         Equipment[]
+  requests          RentalRequest[]
+  jobsPosted        JobPosting[]
+  jobApplications   JobApplication[]
+  sentMessages      Message[]     @relation("SentMessages")
+  conversationsA    Conversation[] @relation("ConversationUserA")
+  conversationsB    Conversation[] @relation("ConversationUserB")
+  reviewsGiven      Review[]      @relation("ReviewsGiven")
+  reviewsReceived   Review[]      @relation("ReviewsReceived")
+  supportTickets    SupportTicket[]
+  notifications     Notification[]
+
+  @@map("users")
+}
+
+model Equipment {
+  id              String            @id @default(uuid())
+  ownerId         String
+  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title           String
+  category        EquipmentCategory
+  listingType     ListingType
+  description     String?
+  pricePerDay     Decimal?          @db.Decimal(10, 2)
+  salePrice       Decimal?          @db.Decimal(10, 2)
+  governorate     String?
+  available       Boolean           @default(true)
+  images          String[]          @default([])
+  requestsCount   Int               @default(0)
+  rating          Float             @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  requests        RentalRequest[]
+
+  @@index([category])
+  @@index([governorate])
+  @@map("equipment")
+}
+
+model RentalRequest {
+  id            String        @id @default(uuid())
+  requesterId   String
+  requester     User          @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  equipmentId   String?
+  equipment     Equipment?    @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  category      EquipmentCategory
+  type          RequestType
+  details       String?
+  dateFrom      DateTime?
+  dateTo        DateTime?
+  governorate   String?
+  budget        String?
+  status        RequestStatus @default(open)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("rental_requests")
+}
+
+model JobPosting {
+  id            String        @id @default(uuid())
+  posterId      String
+  poster        User          @relation(fields: [posterId], references: [id], onDelete: Cascade)
+  title         String
+  jobType       JobType
+  workType      JobWorkType
+  governorate   String
+  description   String?
+  salary        String?
+  status        JobStatus     @default(open)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  applications  JobApplication[]
+
+  @@map("job_postings")
+}
+
+model JobApplication {
+  id            String       @id @default(uuid())
+  jobId         String
+  job           JobPosting   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  applicantId   String
+  applicant     User         @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  message       String?
+  createdAt     DateTime     @default(now())
+
+  @@unique([jobId, applicantId])
+  @@map("job_applications")
+}
+
+model Conversation {
+  id          String     @id @default(uuid())
+  userAId     String
+  userA       User       @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId     String
+  userB       User       @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+
+  messages    Message[]
+
+  @@unique([userAId, userBId])
+  @@map("conversations")
+}
+
+model Message {
+  id              String       @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  body            String
+  readAt          DateTime?
+  createdAt       DateTime     @default(now())
+
+  @@map("messages")
+}
+
+model Review {
+  id            String   @id @default(uuid())
+  fromUserId    String
+  fromUser      User     @relation("ReviewsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId      String
+  toUser        User     @relation("ReviewsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  rating        Int      // 1-5
+  comment       String?
+  createdAt     DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model SupportTicket {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String
+  details       String
+  attachmentUrl String?
+  status        String   @default("open")
+  createdAt     DateTime @default(now())
+
+  @@map("support_tickets")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  body        String?
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("notifications")
+}
