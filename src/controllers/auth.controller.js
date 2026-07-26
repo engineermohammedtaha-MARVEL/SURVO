@@ -19,7 +19,7 @@ function publicUser(user) {
 }
 
 async function register(req, res) {
-  const { fullName, phone, email, password, accountType, governorate } = req.body;
+  const { fullName, phone, email, password, accountType, governorate, bio, specialties } = req.body;
 
   if (!fullName || !phone || !password || !accountType) {
     throw new ApiError(400, 'الاسم ورقم الموبايل وكلمة المرور ونوع الحساب مطلوبين');
@@ -39,11 +39,25 @@ async function register(req, res) {
   const passwordHash = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.create({
-    data: { fullName, phone, email, passwordHash, accountType, governorate },
+    data: {
+      fullName,
+      phone,
+      email,
+      passwordHash,
+      accountType,
+      governorate,
+      bio: bio || undefined,
+      specialties: specialties && specialties.length ? specialties : undefined,
+      accountStatus: 'pending',
+    },
   });
 
-  const token = signToken({ id: user.id, accountType: user.accountType });
-  res.status(201).json({ success: true, token, user: publicUser(user) });
+  res.status(201).json({
+    success: true,
+    pendingApproval: true,
+    message: 'تم إنشاء حسابك، وهيتم تفعيله بعد موافقة الإدارة',
+    user: publicUser(user),
+  });
 }
 
 async function login(req, res) {
@@ -60,6 +74,13 @@ async function login(req, res) {
   const match = await bcrypt.compare(password, user.passwordHash);
   if (!match) {
     throw new ApiError(401, 'رقم الموبايل أو كلمة المرور غلط');
+  }
+
+  if (user.accountStatus === 'pending') {
+    throw new ApiError(403, 'حسابك لسه قيد المراجعة من الإدارة، هيتفعّل قريبًا');
+  }
+  if (user.accountStatus === 'rejected') {
+    throw new ApiError(403, 'تم رفض حسابك من الإدارة، تواصل مع الدعم الفني لمزيد من التفاصيل');
   }
 
   const token = signToken({ id: user.id, accountType: user.accountType });

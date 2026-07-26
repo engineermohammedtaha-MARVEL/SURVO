@@ -74,6 +74,12 @@ enum VerificationStatus {
   verified
 }
 
+enum AccountStatus {
+  pending
+  approved
+  rejected
+}
+
 // ============ MODELS ============
 
 model User {
@@ -87,6 +93,7 @@ model User {
   specialties       String[]      @default([]) // التخصصات
   governorate       String?
   verification       VerificationStatus @default(unverified)
+  accountStatus     AccountStatus @default(approved) // موافقة الأدمن — القيم الجديدة بتتسجل pending من كود الـ register
   unionCardUrl      String?       // كارنيه النقابة (للمهندسين)
   avatarUrl         String?
   rating            Float         @default(0)

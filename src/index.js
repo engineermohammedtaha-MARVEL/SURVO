@@ -1,6 +1,7 @@
 require('dotenv').config();
 require('express-async-errors');
 
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -18,6 +19,7 @@ const chatRoutes = require('./routes/chat.routes');
 const reviewsRoutes = require('./routes/reviews.routes');
 const supportRoutes = require('./routes/support.routes');
 const uploadsRoutes = require('./routes/uploads.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 const app = express();
 
@@ -25,6 +27,7 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // حماية بسيطة من الطلبات الكتير (خصوصًا على auth)
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300 });
@@ -41,6 +44,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/uploads', uploadsRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

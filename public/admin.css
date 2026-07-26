@@ -1,0 +1,15 @@
+body { font-family: -apple-system, Segoe UI, Tahoma, sans-serif; background:#f4f5f7; margin:0; padding:20px; direction:rtl; }
+h1 { font-size:20px; margin-bottom:4px; }
+.subtitle { color:#666; font-size:13px; margin-bottom:20px; }
+.secret-row { display:flex; gap:8px; margin-bottom:20px; max-width:500px; }
+input[type=password], input[type=text] { flex:1; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:14px; }
+button { padding:10px 16px; border:none; border-radius:8px; background:#1e2a4a; color:#fff; font-weight:700; cursor:pointer; font-size:13px; }
+button.approve { background:#2e7d32; }
+button.reject { background:#b3261e; }
+button:disabled { opacity:0.5; cursor:default; }
+table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; }
+th, td { padding:10px 12px; text-align:right; font-size:13px; border-bottom:1px solid #eee; }
+th { background:#1e2a4a; color:#fff; }
+.empty { padding:20px; text-align:center; color:#888; }
+.error { color:#b3261e; font-size:13px; margin-top:6px; }
+.actions { display:flex; gap:6px; }
