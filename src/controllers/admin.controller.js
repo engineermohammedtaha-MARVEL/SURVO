@@ -78,7 +78,57 @@ async function rejectDeviceReport(req, res) {
   res.json({ success: true, report: { id: updated.id, moderationStatus: updated.moderationStatus } });
 }
 
+async function listPendingEquipment(req, res) {
+  const items = await prisma.equipment.findMany({
+    where: { moderationStatus: 'pending' },
+    orderBy: { createdAt: 'desc' },
+    include: { owner: { select: { id: true, fullName: true, phone: true } } },
+  });
+  res.json({ success: true, items });
+}
+
+async function approveEquipment(req, res) {
+  const item = await prisma.equipment.findUnique({ where: { id: req.params.id } });
+  if (!item) throw new ApiError(404, 'الجهاز غير موجود');
+
+  const updated = await prisma.equipment.update({
+    where: { id: req.params.id },
+    data: { moderationStatus: 'approved' },
+  });
+
+  await prisma.notification.create({
+    data: {
+      userId: item.ownerId,
+      title: 'تم نشر إعلانك ✓',
+      body: 'إعلانك "' + item.title + '" اتراجع واتنشر دلوقتي على المنصة.',
+    },
+  });
+
+  res.json({ success: true, item: { id: updated.id, moderationStatus: updated.moderationStatus } });
+}
+
+async function rejectEquipment(req, res) {
+  const item = await prisma.equipment.findUnique({ where: { id: req.params.id } });
+  if (!item) throw new ApiError(404, 'الجهاز غير موجود');
+
+  const updated = await prisma.equipment.update({
+    where: { id: req.params.id },
+    data: { moderationStatus: 'rejected' },
+  });
+
+  await prisma.notification.create({
+    data: {
+      userId: item.ownerId,
+      title: 'تم رفض إعلانك',
+      body: 'إعلانك "' + item.title + '" اترفض بعد المراجعة. تواصل مع الدعم الفني لمزيد من التفاصيل.',
+    },
+  });
+
+  res.json({ success: true, item: { id: updated.id, moderationStatus: updated.moderationStatus } });
+}
+
 module.exports = {
   listPendingUsers, approveUser, rejectUser,
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
+  listPendingEquipment, approveEquipment, rejectEquipment,
 };

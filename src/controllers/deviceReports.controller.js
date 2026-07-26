@@ -38,6 +38,14 @@ async function myReports(req, res) {
   res.json({ success: true, reports });
 }
 
+const CATEGORY_LABELS_AR = {
+  totalstation: 'توتال ستاشن',
+  gps: 'GPS',
+  level: 'ميزان',
+  laser: 'ليزر سكانر',
+  accessories: 'اكسسوارات',
+};
+
 async function lookup(req, res) {
   const { serialNumber } = req.query;
   if (!serialNumber || !serialNumber.trim()) {
@@ -47,10 +55,39 @@ async function lookup(req, res) {
   const report = await prisma.deviceReport.findFirst({
     where: { serialNumber: serialNumber.trim(), moderationStatus: 'approved' },
     orderBy: { createdAt: 'desc' },
+    include: { reporter: { select: { id: true, fullName: true, phone: true } } },
   });
 
   if (!report) {
     return res.json({ success: true, clean: true });
+  }
+
+  const statusLabel = report.status === 'stolen' ? 'مسروق' : 'مفقود';
+  const deviceLabel = (CATEGORY_LABELS_AR[report.category] || report.category) + (report.brand ? ' — ' + report.brand : '');
+
+  // إشعار لصاحب البلاغ (لو المستعلم مسجل دخول ومش هو نفسه) — بنديله اسم ورقم المستعلم يقدر يتواصل بيه
+  if (req.user && req.user.id !== report.reporterId) {
+    const inquirer = await prisma.user.findUnique({ where: { id: req.user.id }, select: { fullName: true, phone: true } });
+    if (inquirer) {
+      await prisma.notification.create({
+        data: {
+          userId: report.reporterId,
+          title: 'حد بيستعلم عن جهازك المتبلّغ عنه',
+          body: 'المستخدم "' + inquirer.fullName + '" (' + inquirer.phone + ') استعلم عن ' + deviceLabel + ' اللي بلّغت عنه كـ' + statusLabel + '. تقدر تتواصل معه.',
+        },
+      });
+    }
+  }
+
+  // إشعار للمستعلم نفسه (سجل دائم غير التحذير اللي بيظهر على الشاشة)
+  if (req.user) {
+    await prisma.notification.create({
+      data: {
+        userId: req.user.id,
+        title: 'تحذير: الجهاز ده مبلّغ عنه',
+        body: deviceLabel + ' بالرقم التسلسلي ' + report.serialNumber + ' مبلّغ عنه كـ' + statusLabel + '.',
+      },
+    });
   }
 
   res.json({

@@ -6,6 +6,7 @@ async function list(req, res) {
 
   const where = {
     available: true,
+    moderationStatus: 'approved',
     ...(category && { category }),
     ...(governorate && { governorate }),
     ...(listingType && { listingType }),
@@ -39,7 +40,7 @@ async function getOne(req, res) {
     where: { id: req.params.id },
     include: { owner: { select: { id: true, fullName: true, rating: true, verification: true, avatarUrl: true } } },
   });
-  if (!item) throw new ApiError(404, 'الجهاز غير موجود');
+  if (!item || item.moderationStatus !== 'approved') throw new ApiError(404, 'الجهاز غير موجود');
   res.json({ success: true, item });
 }
 
@@ -62,6 +63,8 @@ async function create(req, res) {
     }
   }
 
+  const moderationStatus = category === 'accessories' ? 'approved' : 'pending';
+
   const item = await prisma.equipment.create({
     data: {
       ownerId: req.user.id,
@@ -76,10 +79,18 @@ async function create(req, res) {
       serialNumber: serialNumber || undefined,
       ownershipDocUrl: ownershipDocUrl || undefined,
       serialNumberPhotoUrl: serialNumberPhotoUrl || undefined,
+      moderationStatus,
     },
   });
 
-  res.status(201).json({ success: true, item });
+  res.status(201).json({
+    success: true,
+    item,
+    pendingReview: moderationStatus === 'pending',
+    message: moderationStatus === 'pending'
+      ? 'تم استلام إعلانك، وهيتم مراجعته والتأكد من بيانات الجهاز قبل النشر'
+      : 'تم نشر إعلانك بنجاح',
+  });
 }
 
 async function update(req, res) {

@@ -4,6 +4,7 @@ const { requireAdmin } = require('../middleware/adminAuth');
 const {
   listPendingUsers, approveUser, rejectUser,
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
+  listPendingEquipment, approveEquipment, rejectEquipment,
 } = require('../controllers/admin.controller');
 
 // دفاع إضافي ضد محاولات تخمين ADMIN_SECRET
@@ -22,5 +23,8 @@ router.post('/users/:id/reject', rejectUser);
 router.get('/device-reports/pending', listPendingDeviceReports);
 router.post('/device-reports/:id/approve', approveDeviceReport);
 router.post('/device-reports/:id/reject', rejectDeviceReport);
+router.get('/equipment/pending', listPendingEquipment);
+router.post('/equipment/:id/approve', approveEquipment);
+router.post('/equipment/:id/reject', rejectEquipment);
 
 module.exports = router;

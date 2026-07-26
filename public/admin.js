@@ -191,9 +191,88 @@ async function actReport(id, action) {
   }
 }
 
+function equipmentCardEl(item) {
+  const date = new Date(item.createdAt).toLocaleString('ar-EG');
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'equipment-' + item.id;
+
+  const docs = [];
+  if (item.ownershipDocUrl) docs.push(['📄 سند الملكية', item.ownershipDocUrl]);
+  if (item.serialNumberPhotoUrl) docs.push(['🔢 صورة الرقم التسلسلي', item.serialNumberPhotoUrl]);
+  if (item.images && item.images.length) {
+    item.images.forEach(function (url, i) { docs.push(['🖼️ صورة ' + (i + 1), url]); });
+  }
+
+  card.innerHTML =
+    '<div class="card-header">' +
+    '<div class="card-name">' + item.title + '</div>' +
+    '<div class="card-date">' + date + '</div>' +
+    '</div>' +
+    '<div class="card-meta">' +
+    '<span>' + (DEVICE_CATEGORY_LABELS[item.category] || item.category) + '</span>' +
+    '<span>' + (item.listingType === 'rent' ? 'للإيجار' : 'للبيع') + '</span>' +
+    (item.serialNumber ? '<span>🔢 ' + item.serialNumber + '</span>' : '') +
+    '<span>👤 ' + (item.owner ? item.owner.fullName : '—') + '</span>' +
+    '<span>📱 ' + (item.owner ? item.owner.phone : '—') + '</span>' +
+    '</div>' +
+    (item.description ? '<div class="card-bio">' + item.description + '</div>' : '') +
+    '<div class="docs-label">المستندات والصور</div>' +
+    (docs.length
+      ? '<div class="docs-row">' + docs.map(function (d) {
+          return '<a class="doc-link" target="_blank" rel="noopener" href="' + d[1] + '">' + d[0] + '</a>';
+        }).join('') + '</div>'
+      : '<div class="no-docs">⚠ مفيش صور أو مستندات مرفوعة</div>') +
+    '<div class="actions"></div>';
+
+  const actionsCell = card.querySelector('.actions');
+  const approveBtn = document.createElement('button');
+  approveBtn.className = 'approve';
+  approveBtn.textContent = '✓ نشر الإعلان';
+  approveBtn.addEventListener('click', function () { actEquipment(item.id, 'approve'); });
+
+  const rejectBtn = document.createElement('button');
+  rejectBtn.className = 'reject';
+  rejectBtn.textContent = '✕ رفض';
+  rejectBtn.addEventListener('click', function () { actEquipment(item.id, 'reject'); });
+
+  actionsCell.appendChild(approveBtn);
+  actionsCell.appendChild(rejectBtn);
+  return card;
+}
+
+async function loadPendingEquipment() {
+  const errorBox = document.getElementById('errorBox');
+  try {
+    const data = await apiCall('/equipment/pending');
+    const wrap = document.getElementById('equipmentWrap');
+    const empty = document.getElementById('equipmentEmptyBox');
+    wrap.innerHTML = '';
+    if (!data.items.length) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.items.forEach(function (item) { wrap.appendChild(equipmentCardEl(item)); });
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر تحميل الإعلانات — تأكد من صحة المفتاح';
+  }
+}
+
+async function actEquipment(id, action) {
+  try {
+    await apiCall('/equipment/' + id + '/' + action, { method: 'POST' });
+    const card = document.getElementById('equipment-' + id);
+    if (card) card.remove();
+  } catch (err) {
+    alert(err.message || 'حصل خطأ');
+  }
+}
+
 function loadAll() {
   loadUsers();
   loadDeviceReports();
+  loadPendingEquipment();
 }
 
 document.getElementById('loadBtn').addEventListener('click', loadAll);

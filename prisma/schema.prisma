@@ -150,6 +150,7 @@ model Equipment {
   serialNumber    String?
   ownershipDocUrl String?           // سند الملكية أو شهادة المعايرة
   serialNumberPhotoUrl String?      // صورة الرقم التسلسلي على الجهاز
+  moderationStatus ModerationStatus @default(approved) // مراجعة الأدمن — يتسجل pending لأي فئة غير اكسسوارات وقت النشر
   requestsCount   Int               @default(0)
   rating          Float             @default(0)
   createdAt       DateTime          @default(now())
