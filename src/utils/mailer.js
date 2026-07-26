@@ -1,30 +1,23 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-let transporter = null;
+let resend = null;
 
-function getTransporter() {
-  if (transporter) return transporter;
-  if (!process.env.SMTP_USER || !process.env.SMTP_APP_PASSWORD) return null;
-
-  transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_APP_PASSWORD,
-    },
-  });
-  return transporter;
+function getResend() {
+  if (resend) return resend;
+  if (!process.env.RESEND_API_KEY) return null;
+  resend = new Resend(process.env.RESEND_API_KEY);
+  return resend;
 }
 
 async function sendResetPasswordEmail(toEmail, resetUrl) {
-  const t = getTransporter();
-  if (!t) {
-    console.warn('SMTP مش مظبوط — الإيميل مش هيتبعت. الرابط:', resetUrl);
+  const r = getResend();
+  if (!r) {
+    console.warn('RESEND_API_KEY مش مظبوط — الإيميل مش هيتبعت. الرابط:', resetUrl);
     return;
   }
 
-  await t.sendMail({
-    from: 'SURVO <' + process.env.SMTP_USER + '>',
+  await r.emails.send({
+    from: process.env.RESEND_FROM || 'SURVO <onboarding@resend.dev>',
     to: toEmail,
     subject: 'إعادة تعيين كلمة المرور — SURVO',
     html: `
