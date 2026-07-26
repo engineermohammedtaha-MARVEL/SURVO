@@ -29,7 +29,8 @@ async function updateMe(req, res) {
     },
   });
 
-  res.json({ success: true, user: publicUser(user) });
+  const responseRate = await computeResponseRate(user.id);
+  res.json({ success: true, user: { ...publicUser(user), responseRate } });
 }
 
 async function addSpecialty(req, res) {
