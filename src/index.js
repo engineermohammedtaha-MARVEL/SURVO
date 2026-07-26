@@ -23,6 +23,10 @@ const adminRoutes = require('./routes/admin.routes');
 
 const app = express();
 
+// Railway (وأي منصة استضافة) بتحط السيرفر وراء reverse proxy واحد،
+// فلازم نصدّق على أول proxy بس عشان express-rate-limit يعرف الـ IP الحقيقي صح
+app.set('trust proxy', 1);
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
