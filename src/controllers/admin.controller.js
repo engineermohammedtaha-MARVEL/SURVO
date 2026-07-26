@@ -12,6 +12,13 @@ async function listPendingUsers(req, res) {
       email: true,
       accountType: true,
       governorate: true,
+      bio: true,
+      specialties: true,
+      nationalIdUrl: true,
+      personalPhotoUrl: true,
+      qualificationUrl: true,
+      unionCardUrl: true,
+      commercialRecordUrl: true,
       createdAt: true,
     },
   });

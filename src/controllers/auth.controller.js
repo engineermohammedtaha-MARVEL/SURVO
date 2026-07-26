@@ -19,7 +19,10 @@ function publicUser(user) {
 }
 
 async function register(req, res) {
-  const { fullName, phone, email, password, accountType, governorate, bio, specialties } = req.body;
+  const {
+    fullName, phone, email, password, accountType, governorate, bio, specialties,
+    nationalIdUrl, personalPhotoUrl, qualificationUrl, unionCardUrl, commercialRecordUrl,
+  } = req.body;
 
   if (!fullName || !phone || !password || !accountType) {
     throw new ApiError(400, 'الاسم ورقم الموبايل وكلمة المرور ونوع الحساب مطلوبين');
@@ -48,6 +51,11 @@ async function register(req, res) {
       governorate,
       bio: bio || undefined,
       specialties: specialties && specialties.length ? specialties : undefined,
+      nationalIdUrl: nationalIdUrl || undefined,
+      personalPhotoUrl: personalPhotoUrl || undefined,
+      qualificationUrl: qualificationUrl || undefined,
+      unionCardUrl: unionCardUrl || undefined,
+      commercialRecordUrl: commercialRecordUrl || undefined,
       accountStatus: 'pending',
     },
   });

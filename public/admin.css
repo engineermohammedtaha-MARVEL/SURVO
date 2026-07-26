@@ -7,9 +7,26 @@ button { padding:10px 16px; border:none; border-radius:8px; background:#1e2a4a; 
 button.approve { background:#2e7d32; }
 button.reject { background:#b3261e; }
 button:disabled { opacity:0.5; cursor:default; }
-table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; }
-th, td { padding:10px 12px; text-align:right; font-size:13px; border-bottom:1px solid #eee; }
-th { background:#1e2a4a; color:#fff; }
 .empty { padding:20px; text-align:center; color:#888; }
 .error { color:#b3261e; font-size:13px; margin-top:6px; }
-.actions { display:flex; gap:6px; }
+.actions { display:flex; gap:6px; margin-top:14px; }
+
+.card {
+  background:#fff; border-radius:12px; padding:16px 18px; margin-bottom:14px;
+  border:1px solid #e5e5e5; max-width:720px;
+}
+.card-header { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:6px; }
+.card-name { font-size:15px; font-weight:700; }
+.card-date { font-size:11px; color:#999; }
+.card-meta { font-size:12.5px; color:#555; margin-top:4px; display:flex; gap:14px; flex-wrap:wrap; }
+.card-bio { font-size:12.5px; color:#444; margin-top:10px; line-height:1.6; background:#f8f8f8; padding:8px 10px; border-radius:8px; }
+.card-tags { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+.tag { background:#eef1f6; color:#1e2a4a; border-radius:20px; padding:3px 10px; font-size:11.5px; }
+.docs-label { font-size:11.5px; color:#888; margin-top:12px; margin-bottom:4px; }
+.docs-row { display:flex; gap:8px; flex-wrap:wrap; }
+.doc-link {
+  display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:#1e2a4a;
+  background:#f0f2f6; border-radius:8px; padding:5px 9px; text-decoration:none;
+}
+.doc-link:hover { background:#e2e6ee; }
+.no-docs { font-size:11.5px; color:#b3261e; margin-top:12px; }

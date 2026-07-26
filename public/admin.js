@@ -1,5 +1,23 @@
 const API_BASE = location.origin + '/api/admin';
 
+const ACCOUNT_TYPE_LABELS = {
+  engineer: 'مهندس مساحة',
+  specialist: 'أخصائي مساحة',
+  surveyor_academic: 'مساح عام أكاديمي',
+  surveyor_professional: 'مساح مهني',
+  assistant: 'مساعد مساح',
+  office: 'مكتب / شركة',
+  general: 'تسجيل عام',
+};
+
+const DOC_LABELS = {
+  nationalIdUrl: '🪪 بطاقة الرقم القومي',
+  personalPhotoUrl: '🙂 صورة شخصية',
+  qualificationUrl: '🎓 المؤهل الدراسي',
+  unionCardUrl: '📜 كارنيه النقابة',
+  commercialRecordUrl: '📄 السجل التجاري',
+};
+
 function getSecret() {
   const s = document.getElementById('secretInput').value.trim();
   if (s) localStorage.setItem('survo_admin_secret', s);
@@ -15,19 +33,38 @@ async function apiCall(path, options) {
   return data;
 }
 
-function rowHTML(u) {
+function cardEl(u) {
   const date = new Date(u.createdAt).toLocaleString('ar-EG');
-  const tr = document.createElement('tr');
-  tr.id = 'row-' + u.id;
-  tr.innerHTML =
-    '<td>' + u.fullName + '</td>' +
-    '<td>' + u.phone + '</td>' +
-    '<td>' + u.accountType + '</td>' +
-    '<td>' + (u.governorate || '—') + '</td>' +
-    '<td>' + date + '</td>' +
-    '<td class="actions"></td>';
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'card-' + u.id;
 
-  const actionsCell = tr.querySelector('.actions');
+  const docs = Object.keys(DOC_LABELS).filter(function (key) { return u[key]; });
+
+  card.innerHTML =
+    '<div class="card-header">' +
+    '<div class="card-name">' + u.fullName + '</div>' +
+    '<div class="card-date">' + date + '</div>' +
+    '</div>' +
+    '<div class="card-meta">' +
+    '<span>📱 ' + u.phone + '</span>' +
+    '<span>✉️ ' + (u.email || '—') + '</span>' +
+    '<span>' + (ACCOUNT_TYPE_LABELS[u.accountType] || u.accountType) + '</span>' +
+    '<span>📍 ' + (u.governorate || '—') + '</span>' +
+    '</div>' +
+    (u.bio ? '<div class="card-bio">' + u.bio + '</div>' : '') +
+    (u.specialties && u.specialties.length
+      ? '<div class="card-tags">' + u.specialties.map(function (s) { return '<span class="tag">' + s + '</span>'; }).join('') + '</div>'
+      : '') +
+    '<div class="docs-label">المستندات المرفوعة</div>' +
+    (docs.length
+      ? '<div class="docs-row">' + docs.map(function (key) {
+          return '<a class="doc-link" target="_blank" rel="noopener" href="' + u[key] + '">' + DOC_LABELS[key] + '</a>';
+        }).join('') + '</div>'
+      : '<div class="no-docs">⚠ المستخدم لسه ما رفعش أي مستندات توثيق</div>') +
+    '<div class="actions"></div>';
+
+  const actionsCell = card.querySelector('.actions');
   const approveBtn = document.createElement('button');
   approveBtn.className = 'approve';
   approveBtn.textContent = '✓ موافقة';
@@ -40,7 +77,7 @@ function rowHTML(u) {
 
   actionsCell.appendChild(approveBtn);
   actionsCell.appendChild(rejectBtn);
-  return tr;
+  return card;
 }
 
 async function loadUsers() {
@@ -48,18 +85,15 @@ async function loadUsers() {
   errorBox.textContent = '';
   try {
     const data = await apiCall('/users/pending');
-    const table = document.getElementById('usersTable');
+    const wrap = document.getElementById('cardsWrap');
     const empty = document.getElementById('emptyBox');
-    const body = document.getElementById('usersBody');
-    body.innerHTML = '';
+    wrap.innerHTML = '';
     if (!data.users.length) {
-      table.style.display = 'none';
       empty.style.display = 'block';
       return;
     }
     empty.style.display = 'none';
-    table.style.display = 'table';
-    data.users.forEach(function (u) { body.appendChild(rowHTML(u)); });
+    data.users.forEach(function (u) { wrap.appendChild(cardEl(u)); });
   } catch (err) {
     errorBox.textContent = err.message || 'تعذر تحميل البيانات — تأكد من صحة المفتاح';
   }
@@ -68,8 +102,8 @@ async function loadUsers() {
 async function act(id, action) {
   try {
     await apiCall('/users/' + id + '/' + action, { method: 'POST' });
-    const row = document.getElementById('row-' + id);
-    if (row) row.remove();
+    const card = document.getElementById('card-' + id);
+    if (card) card.remove();
   } catch (err) {
     alert(err.message || 'حصل خطأ');
   }

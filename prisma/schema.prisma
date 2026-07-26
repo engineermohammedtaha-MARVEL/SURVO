@@ -95,6 +95,10 @@ model User {
   verification       VerificationStatus @default(unverified)
   accountStatus     AccountStatus @default(approved) // موافقة الأدمن — القيم الجديدة بتتسجل pending من كود الـ register
   unionCardUrl      String?       // كارنيه النقابة (للمهندسين)
+  nationalIdUrl     String?       // بطاقة الرقم القومي
+  personalPhotoUrl  String?       // صورة شخصية واضحة لتوثيق الهوية
+  qualificationUrl  String?       // المؤهل الدراسي
+  commercialRecordUrl String?     // السجل التجاري (للمكاتب/الشركات)
   avatarUrl         String?
   rating            Float         @default(0)
   ratingCount       Int           @default(0)
