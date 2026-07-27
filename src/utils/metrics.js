@@ -1,8 +1,9 @@
 const prisma = require('../config/db');
 
-// نسبة الاستجابة = من المحادثات اللي حد تاني بدأ يكلّم المستخدم فيها فعلاً،
-// كام واحدة فيها المستخدم رد بنفسه. المحادثات اللي هو نفسه بدأها ولسه محدش
-// رد عليه فيها مش بتتحسب، عشان الرقم يعبّر عن استجابته الفعلية للناس مش عن نشاطه هو بس.
+// نسبة الاستجابة = من المحادثات اللي حد تاني بدأ يكلّم المستخدم فيها فعلاً (يعني
+// هو مش اللي بعت أول رسالة)، كام واحدة فيها المستخدم رد بنفسه بعد كده. بنحدد "مين بدأ"
+// من ترتيب الرسايل الفعلي، مش بس مين اشترك في المحادثة — عشان لو المستخدم هو اللي بدأ
+// وبعدين الطرف التاني رد، ده لسه بيعتبر استباق منه هو مش استجابة له.
 async function computeResponseRate(userId) {
   const conversations = await prisma.conversation.findMany({
     where: { OR: [{ userAId: userId }, { userBId: userId }] },
@@ -11,25 +12,27 @@ async function computeResponseRate(userId) {
   if (!conversations.length) return null;
 
   const conversationIds = conversations.map((c) => c.id);
-  const senderGroups = await prisma.message.groupBy({
-    by: ['conversationId', 'senderId'],
+
+  const messagesInOrder = await prisma.message.findMany({
     where: { conversationId: { in: conversationIds } },
+    orderBy: { createdAt: 'asc' },
+    select: { conversationId: true, senderId: true },
   });
 
-  const sendersByConv = {};
-  for (const g of senderGroups) {
-    if (!sendersByConv[g.conversationId]) sendersByConv[g.conversationId] = new Set();
-    sendersByConv[g.conversationId].add(g.senderId);
+  const firstSenderByConv = {};
+  const repliedConvSet = new Set();
+  for (const m of messagesInOrder) {
+    if (!(m.conversationId in firstSenderByConv)) firstSenderByConv[m.conversationId] = m.senderId;
+    if (m.senderId === userId) repliedConvSet.add(m.conversationId);
   }
 
   let engagedCount = 0;
   let repliedCount = 0;
   for (const convId of conversationIds) {
-    const senders = sendersByConv[convId] || new Set();
-    const othersEngaged = Array.from(senders).some((id) => id !== userId);
-    if (!othersEngaged) continue;
+    const firstSender = firstSenderByConv[convId];
+    if (!firstSender || firstSender === userId) continue; // المستخدم نفسه اللي بدأ، أو مفيش رسايل خالص
     engagedCount++;
-    if (senders.has(userId)) repliedCount++;
+    if (repliedConvSet.has(convId)) repliedCount++;
   }
 
   if (!engagedCount) return null;
