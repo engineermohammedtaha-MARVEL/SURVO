@@ -33,6 +33,15 @@ async function approveUser(req, res) {
     where: { id: req.params.id },
     data: { accountStatus: 'approved' },
   });
+
+  await prisma.notification.create({
+    data: {
+      userId: updated.id,
+      title: 'تم تفعيل حسابك ✓',
+      body: 'اتوافق على حسابك من الإدارة، تقدر تسجّل دخولك وتستخدم التطبيق دلوقتي.',
+    },
+  });
+
   res.json({ success: true, user: { id: updated.id, accountStatus: updated.accountStatus } });
 }
 
@@ -40,10 +49,21 @@ async function rejectUser(req, res) {
   const user = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!user) throw new ApiError(404, 'المستخدم غير موجود');
 
+  const reason = (req.body && req.body.reason || '').trim();
+
   const updated = await prisma.user.update({
     where: { id: req.params.id },
     data: { accountStatus: 'rejected' },
   });
+
+  await prisma.notification.create({
+    data: {
+      userId: updated.id,
+      title: 'تم رفض حسابك',
+      body: 'حسابك اترفض من الإدارة' + (reason ? ': ' + reason : '. تواصل مع الدعم الفني لمزيد من التفاصيل.'),
+    },
+  });
+
   res.json({ success: true, user: { id: updated.id, accountStatus: updated.accountStatus } });
 }
 
@@ -64,6 +84,15 @@ async function approveDeviceReport(req, res) {
     where: { id: req.params.id },
     data: { moderationStatus: 'approved' },
   });
+
+  await prisma.notification.create({
+    data: {
+      userId: report.reporterId,
+      title: 'تم اعتماد بلاغك ✓',
+      body: 'بلاغك عن الجهاز اترجع واتفعّل، ودلوقتي أي حد يستعلم عن الرقم التسلسلي ده هياخد تحذير.',
+    },
+  });
+
   res.json({ success: true, report: { id: updated.id, moderationStatus: updated.moderationStatus } });
 }
 
@@ -71,10 +100,21 @@ async function rejectDeviceReport(req, res) {
   const report = await prisma.deviceReport.findUnique({ where: { id: req.params.id } });
   if (!report) throw new ApiError(404, 'البلاغ غير موجود');
 
+  const reason = (req.body && req.body.reason || '').trim();
+
   const updated = await prisma.deviceReport.update({
     where: { id: req.params.id },
     data: { moderationStatus: 'rejected' },
   });
+
+  await prisma.notification.create({
+    data: {
+      userId: report.reporterId,
+      title: 'تم رفض بلاغك',
+      body: 'بلاغك عن الجهاز اترفض بعد المراجعة' + (reason ? ': ' + reason : '. تواصل مع الدعم الفني لمزيد من التفاصيل.'),
+    },
+  });
+
   res.json({ success: true, report: { id: updated.id, moderationStatus: updated.moderationStatus } });
 }
 

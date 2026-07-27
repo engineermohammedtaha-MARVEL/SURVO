@@ -73,7 +73,11 @@ function cardEl(u) {
   const rejectBtn = document.createElement('button');
   rejectBtn.className = 'reject';
   rejectBtn.textContent = '✕ رفض';
-  rejectBtn.addEventListener('click', function () { act(u.id, 'reject'); });
+  rejectBtn.addEventListener('click', function () {
+    const reason = prompt('اكتب سبب رفض الحساب (هيتبعت للمستخدم كإشعار):', '');
+    if (reason === null) return;
+    act(u.id, 'reject', reason);
+  });
 
   actionsCell.appendChild(approveBtn);
   actionsCell.appendChild(rejectBtn);
@@ -99,9 +103,12 @@ async function loadUsers() {
   }
 }
 
-async function act(id, action) {
+async function act(id, action, reason) {
   try {
-    await apiCall('/users/' + id + '/' + action, { method: 'POST' });
+    await apiCall('/users/' + id + '/' + action, {
+      method: 'POST',
+      body: action === 'reject' ? JSON.stringify({ reason: reason || '' }) : undefined,
+    });
     const card = document.getElementById('card-' + id);
     if (card) card.remove();
   } catch (err) {
@@ -156,7 +163,11 @@ function reportCardEl(r) {
   const rejectBtn = document.createElement('button');
   rejectBtn.className = 'reject';
   rejectBtn.textContent = '✕ رفض';
-  rejectBtn.addEventListener('click', function () { actReport(r.id, 'reject'); });
+  rejectBtn.addEventListener('click', function () {
+    const reason = prompt('اكتب سبب رفض البلاغ (هيتبعت للمُبلّغ كإشعار):', '');
+    if (reason === null) return;
+    actReport(r.id, 'reject', reason);
+  });
 
   actionsCell.appendChild(approveBtn);
   actionsCell.appendChild(rejectBtn);
@@ -181,9 +192,12 @@ async function loadDeviceReports() {
   }
 }
 
-async function actReport(id, action) {
+async function actReport(id, action, reason) {
   try {
-    await apiCall('/device-reports/' + id + '/' + action, { method: 'POST' });
+    await apiCall('/device-reports/' + id + '/' + action, {
+      method: 'POST',
+      body: action === 'reject' ? JSON.stringify({ reason: reason || '' }) : undefined,
+    });
     const card = document.getElementById('report-' + id);
     if (card) card.remove();
   } catch (err) {

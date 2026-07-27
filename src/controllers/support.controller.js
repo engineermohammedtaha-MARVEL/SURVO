@@ -26,7 +26,19 @@ async function myNotifications(req, res) {
     orderBy: { createdAt: 'desc' },
     take: 50,
   });
-  res.json({ success: true, notifications });
+
+  const contactUserIds = [...new Set(notifications.map((n) => n.contactUserId).filter(Boolean))];
+  const contactUsers = contactUserIds.length
+    ? await prisma.user.findMany({ where: { id: { in: contactUserIds } }, select: { id: true, fullName: true } })
+    : [];
+  const contactUserMap = Object.fromEntries(contactUsers.map((u) => [u.id, u]));
+
+  const withContact = notifications.map((n) => ({
+    ...n,
+    contactUser: n.contactUserId ? contactUserMap[n.contactUserId] || null : null,
+  }));
+
+  res.json({ success: true, notifications: withContact });
 }
 
 async function markNotificationRead(req, res) {

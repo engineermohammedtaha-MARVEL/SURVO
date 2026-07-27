@@ -73,7 +73,8 @@ async function lookup(req, res) {
         data: {
           userId: report.reporterId,
           title: 'حد بيستعلم عن جهازك المتبلّغ عنه',
-          body: 'المستخدم "' + inquirer.fullName + '" (' + inquirer.phone + ') استعلم عن ' + deviceLabel + ' اللي بلّغت عنه كـ' + statusLabel + '. تقدر تتواصل معه.',
+          body: 'المستخدم "' + inquirer.fullName + '" (' + inquirer.phone + ') استعلم عن ' + deviceLabel + ' اللي بلّغت عنه كـ' + statusLabel + '. تقدر تتواصل معه من هنا.',
+          contactUserId: req.user.id,
         },
       });
     }
