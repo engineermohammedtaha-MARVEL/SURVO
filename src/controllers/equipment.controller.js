@@ -38,7 +38,7 @@ async function list(req, res) {
 async function getOne(req, res) {
   const item = await prisma.equipment.findUnique({
     where: { id: req.params.id },
-    include: { owner: { select: { id: true, fullName: true, rating: true, verification: true, avatarUrl: true } } },
+    include: { owner: { select: { id: true, fullName: true, phone: true, rating: true, verification: true, avatarUrl: true } } },
   });
   if (!item || item.moderationStatus !== 'approved') throw new ApiError(404, 'الجهاز غير موجود');
   res.json({ success: true, item });

@@ -3,7 +3,10 @@ const ApiError = require('../utils/apiError');
 
 async function listConversations(req, res) {
   const conversations = await prisma.conversation.findMany({
-    where: { OR: [{ userAId: req.user.id }, { userBId: req.user.id }] },
+    where: {
+      OR: [{ userAId: req.user.id }, { userBId: req.user.id }],
+      messages: { some: {} }, // مش هينفع تظهر في قائمة المحادثات إلا لو فيها رسالة حقيقية بالفعل
+    },
     include: {
       userA: { select: { id: true, fullName: true, avatarUrl: true } },
       userB: { select: { id: true, fullName: true, avatarUrl: true } },
@@ -12,6 +15,19 @@ async function listConversations(req, res) {
     orderBy: { createdAt: 'desc' },
   });
   res.json({ success: true, conversations });
+}
+
+// بيدور على محادثة موجودة فعلاً من غير ما ينشئها — مجرد ما تفتح شات مع حد
+// ماينفعش يعمل سطر محادثة فاضي يظهر في قائمة المحادثات
+async function findExistingConversation(req, res) {
+  const otherUserId = req.params.userId;
+  const [userAId, userBId] = [req.user.id, otherUserId].sort();
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { userAId_userBId: { userAId, userBId } },
+  });
+
+  res.json({ success: true, conversation: conversation || null });
 }
 
 async function startOrGetConversation(req, res) {
@@ -66,4 +82,4 @@ async function sendMessage(req, res) {
   res.status(201).json({ success: true, message });
 }
 
-module.exports = { listConversations, startOrGetConversation, getMessages, sendMessage };
+module.exports = { listConversations, findExistingConversation, startOrGetConversation, getMessages, sendMessage };

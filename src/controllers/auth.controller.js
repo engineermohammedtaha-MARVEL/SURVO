@@ -48,7 +48,7 @@ async function register(req, res) {
     data: {
       fullName,
       phone,
-      email,
+      email: email ? email.trim().toLowerCase() : undefined,
       passwordHash,
       accountType,
       governorate,
@@ -79,7 +79,9 @@ async function login(req, res) {
   }
 
   const identifier = phone.trim();
-  const user = await prisma.user.findFirst({ where: { OR: [{ phone: identifier }, { email: identifier }] } });
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ phone: identifier }, { email: { equals: identifier, mode: 'insensitive' } }] },
+  });
   if (!user) {
     throw new ApiError(401, 'رقم الموبايل أو كلمة المرور غلط');
   }
@@ -104,7 +106,7 @@ async function forgotPassword(req, res) {
   const { email } = req.body;
   if (!email) throw new ApiError(400, 'اكتب البريد الإلكتروني');
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findFirst({ where: { email: { equals: email.trim(), mode: 'insensitive' } } });
   // نرجّع نفس الرد سواء الإيميل موجود أو لأ، عشان محدش يعرف إيميلات مسجلة ولا لأ
   if (user) {
     const rawToken = crypto.randomBytes(32).toString('hex');

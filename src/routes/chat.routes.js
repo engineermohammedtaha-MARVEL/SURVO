@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
 const {
   listConversations,
+  findExistingConversation,
   startOrGetConversation,
   getMessages,
   sendMessage,
@@ -9,6 +10,7 @@ const {
 
 router.use(requireAuth);
 router.get('/conversations', listConversations);
+router.get('/conversations/with/:userId', findExistingConversation);
 router.post('/conversations', startOrGetConversation);
 router.get('/conversations/:id/messages', getMessages);
 router.post('/conversations/:id/messages', sendMessage);
