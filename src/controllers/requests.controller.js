@@ -55,6 +55,15 @@ async function create(req, res) {
   res.status(201).json({ success: true, item });
 }
 
+async function getOne(req, res) {
+  const item = await prisma.rentalRequest.findUnique({
+    where: { id: req.params.id },
+    include: { requester: { select: { id: true, fullName: true, phone: true, verification: true, avatarUrl: true } } },
+  });
+  if (!item) throw new ApiError(404, 'الطلب غير موجود');
+  res.json({ success: true, item });
+}
+
 async function myRequests(req, res) {
   const items = await prisma.rentalRequest.findMany({
     where: { requesterId: req.user.id },
@@ -76,4 +85,4 @@ async function updateStatus(req, res) {
   res.json({ success: true, item });
 }
 
-module.exports = { list, create, myRequests, updateStatus };
+module.exports = { list, getOne, create, myRequests, updateStatus };
