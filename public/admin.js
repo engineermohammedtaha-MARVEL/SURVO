@@ -234,7 +234,11 @@ function equipmentCardEl(item) {
   const rejectBtn = document.createElement('button');
   rejectBtn.className = 'reject';
   rejectBtn.textContent = '✕ رفض';
-  rejectBtn.addEventListener('click', function () { actEquipment(item.id, 'reject'); });
+  rejectBtn.addEventListener('click', function () {
+    const reason = prompt('اكتب سبب رفض الإعلان (هيتبعت للمستخدم كإشعار):', '');
+    if (reason === null) return;
+    actEquipment(item.id, 'reject', reason);
+  });
 
   actionsCell.appendChild(approveBtn);
   actionsCell.appendChild(rejectBtn);
@@ -259,9 +263,12 @@ async function loadPendingEquipment() {
   }
 }
 
-async function actEquipment(id, action) {
+async function actEquipment(id, action, reason) {
   try {
-    await apiCall('/equipment/' + id + '/' + action, { method: 'POST' });
+    await apiCall('/equipment/' + id + '/' + action, {
+      method: 'POST',
+      body: action === 'reject' ? JSON.stringify({ reason: reason || '' }) : undefined,
+    });
     const card = document.getElementById('equipment-' + id);
     if (card) card.remove();
   } catch (err) {

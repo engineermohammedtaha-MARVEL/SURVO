@@ -111,6 +111,8 @@ async function rejectEquipment(req, res) {
   const item = await prisma.equipment.findUnique({ where: { id: req.params.id } });
   if (!item) throw new ApiError(404, 'الجهاز غير موجود');
 
+  const reason = (req.body && req.body.reason || '').trim();
+
   const updated = await prisma.equipment.update({
     where: { id: req.params.id },
     data: { moderationStatus: 'rejected' },
@@ -120,7 +122,7 @@ async function rejectEquipment(req, res) {
     data: {
       userId: item.ownerId,
       title: 'تم رفض إعلانك',
-      body: 'إعلانك "' + item.title + '" اترفض بعد المراجعة. تواصل مع الدعم الفني لمزيد من التفاصيل.',
+      body: 'إعلانك "' + item.title + '" اترفض بعد المراجعة' + (reason ? ': ' + reason : '. تواصل مع الدعم الفني لمزيد من التفاصيل.'),
     },
   });
 
