@@ -27,7 +27,7 @@ async function list(req, res) {
       orderBy: { createdAt: 'desc' },
       take,
       skip,
-      include: { owner: { select: { id: true, fullName: true, rating: true, verification: true } } },
+      include: { owner: { select: { id: true, fullName: true, phone: true, rating: true, verification: true } } },
     }),
     prisma.equipment.count({ where }),
   ]);

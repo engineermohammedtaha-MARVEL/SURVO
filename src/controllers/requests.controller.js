@@ -10,7 +10,7 @@ async function list(req, res) {
       ...(status && { status }),
     },
     orderBy: { createdAt: 'desc' },
-    include: { requester: { select: { id: true, fullName: true } } },
+    include: { requester: { select: { id: true, fullName: true, phone: true, rating: true, verification: true } } },
   });
   res.json({ success: true, items });
 }
