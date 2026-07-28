@@ -290,10 +290,72 @@ async function actEquipment(id, action, reason) {
   }
 }
 
+function ticketCardEl(t) {
+  const date = new Date(t.createdAt).toLocaleString('ar-EG');
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'ticket-' + t.id;
+
+  card.innerHTML =
+    '<div class="card-header">' +
+    '<div class="card-name">' + (t.type || 'استفسار عام') + '</div>' +
+    '<div class="card-date">' + date + '</div>' +
+    '</div>' +
+    '<div class="card-meta">' +
+    '<span>👤 ' + (t.user ? t.user.fullName : '—') + '</span>' +
+    '<span>📱 ' + (t.user ? t.user.phone : '—') + '</span>' +
+    '<span>✉️ ' + (t.user && t.user.email ? t.user.email : '—') + '</span>' +
+    '</div>' +
+    '<div class="card-bio">' + t.details + '</div>' +
+    '<div class="docs-label">المرفق</div>' +
+    (t.attachmentUrl
+      ? '<div class="docs-row"><a class="doc-link" target="_blank" rel="noopener" href="' + t.attachmentUrl + '">📎 عرض المرفق</a></div>'
+      : '<div class="no-docs">⚠ مفيش مرفق</div>') +
+    '<div class="actions"></div>';
+
+  const actionsCell = card.querySelector('.actions');
+  const resolveBtn = document.createElement('button');
+  resolveBtn.className = 'approve';
+  resolveBtn.textContent = '✓ تم الحل';
+  resolveBtn.addEventListener('click', function () { actTicket(t.id); });
+
+  actionsCell.appendChild(resolveBtn);
+  return card;
+}
+
+async function loadSupportTickets() {
+  const errorBox = document.getElementById('errorBox');
+  try {
+    const data = await apiCall('/support-tickets/open');
+    const wrap = document.getElementById('ticketsWrap');
+    const empty = document.getElementById('ticketsEmptyBox');
+    wrap.innerHTML = '';
+    if (!data.tickets.length) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.tickets.forEach(function (t) { wrap.appendChild(ticketCardEl(t)); });
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر تحميل رسائل الدعم الفني — تأكد من صحة المفتاح';
+  }
+}
+
+async function actTicket(id) {
+  try {
+    await apiCall('/support-tickets/' + id + '/resolve', { method: 'POST' });
+    const card = document.getElementById('ticket-' + id);
+    if (card) card.remove();
+  } catch (err) {
+    alert(err.message || 'حصل خطأ');
+  }
+}
+
 function loadAll() {
   loadUsers();
   loadDeviceReports();
   loadPendingEquipment();
+  loadSupportTickets();
 }
 
 document.getElementById('loadBtn').addEventListener('click', loadAll);

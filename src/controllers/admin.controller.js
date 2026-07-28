@@ -169,8 +169,38 @@ async function rejectEquipment(req, res) {
   res.json({ success: true, item: { id: updated.id, moderationStatus: updated.moderationStatus } });
 }
 
+async function listOpenSupportTickets(req, res) {
+  const tickets = await prisma.supportTicket.findMany({
+    where: { status: 'open' },
+    orderBy: { createdAt: 'desc' },
+    include: { user: { select: { id: true, fullName: true, phone: true, email: true } } },
+  });
+  res.json({ success: true, tickets });
+}
+
+async function resolveSupportTicket(req, res) {
+  const ticket = await prisma.supportTicket.findUnique({ where: { id: req.params.id } });
+  if (!ticket) throw new ApiError(404, 'التذكرة غير موجودة');
+
+  const updated = await prisma.supportTicket.update({
+    where: { id: req.params.id },
+    data: { status: 'resolved' },
+  });
+
+  await prisma.notification.create({
+    data: {
+      userId: ticket.userId,
+      title: 'تم الرد على تذكرة الدعم الفني',
+      body: 'تم التعامل مع تذكرتك الخاصة بـ"' + ticket.type + '". لو محتاج مساعدة إضافية، ابعت تذكرة جديدة.',
+    },
+  });
+
+  res.json({ success: true, ticket: { id: updated.id, status: updated.status } });
+}
+
 module.exports = {
   listPendingUsers, approveUser, rejectUser,
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
   listPendingEquipment, approveEquipment, rejectEquipment,
+  listOpenSupportTickets, resolveSupportTicket,
 };

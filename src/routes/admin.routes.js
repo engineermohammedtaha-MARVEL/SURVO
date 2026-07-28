@@ -5,6 +5,7 @@ const {
   listPendingUsers, approveUser, rejectUser,
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
   listPendingEquipment, approveEquipment, rejectEquipment,
+  listOpenSupportTickets, resolveSupportTicket,
 } = require('../controllers/admin.controller');
 
 // دفاع إضافي ضد محاولات تخمين ADMIN_SECRET
@@ -26,5 +27,7 @@ router.post('/device-reports/:id/reject', rejectDeviceReport);
 router.get('/equipment/pending', listPendingEquipment);
 router.post('/equipment/:id/approve', approveEquipment);
 router.post('/equipment/:id/reject', rejectEquipment);
+router.get('/support-tickets/open', listOpenSupportTickets);
+router.post('/support-tickets/:id/resolve', resolveSupportTicket);
 
 module.exports = router;
