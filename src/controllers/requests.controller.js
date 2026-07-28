@@ -85,4 +85,13 @@ async function updateStatus(req, res) {
   res.json({ success: true, item });
 }
 
-module.exports = { list, getOne, create, myRequests, updateStatus };
+async function remove(req, res) {
+  const existing = await prisma.rentalRequest.findUnique({ where: { id: req.params.id } });
+  if (!existing) throw new ApiError(404, 'الطلب غير موجود');
+  if (existing.requesterId !== req.user.id) throw new ApiError(403, 'مش مسموح لك تحذف الطلب ده');
+
+  await prisma.rentalRequest.delete({ where: { id: req.params.id } });
+  res.json({ success: true });
+}
+
+module.exports = { list, getOne, create, myRequests, updateStatus, remove };
