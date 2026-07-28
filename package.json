@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
@@ -30,7 +31,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.4",
-    "prisma": "^5.20.0"
+    "prisma": "^5.20.0",
+    "supertest": "^7.2.2"
   },
   "allowScripts": {
     "@prisma/client@5.22.0": true,

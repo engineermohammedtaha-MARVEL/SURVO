@@ -56,8 +56,10 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`SURVO API شغال على http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`SURVO API شغال على http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;
