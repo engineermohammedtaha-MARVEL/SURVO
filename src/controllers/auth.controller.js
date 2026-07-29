@@ -98,7 +98,7 @@ async function login(req, res) {
     throw new ApiError(403, 'تم رفض حسابك من الإدارة، تواصل مع الدعم الفني لمزيد من التفاصيل');
   }
 
-  const token = signToken({ id: user.id, accountType: user.accountType });
+  const token = signToken({ id: user.id, accountType: user.accountType, tokenVersion: user.tokenVersion });
   res.json({ success: true, token, user: publicUser(user) });
 }
 
@@ -137,7 +137,7 @@ async function resetPassword(req, res) {
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null },
+    data: { passwordHash, resetTokenHash: null, resetTokenExpiresAt: null, tokenVersion: { increment: 1 } },
   });
 
   res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح' });

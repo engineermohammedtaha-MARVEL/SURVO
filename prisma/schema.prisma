@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============ ENUMS ============
@@ -113,6 +114,7 @@ model User {
   avatarUrl         String?
   resetTokenHash    String?       // هاش توكن إعادة تعيين كلمة المرور
   resetTokenExpiresAt DateTime?
+  tokenVersion      Int           @default(0) // بيتزود لما كلمة السر تتغير، عشان أي توكن JWT قديم يبطل فورًا
   rating            Float         @default(0)
   ratingCount       Int           @default(0)
   createdAt         DateTime      @default(now())
