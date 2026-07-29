@@ -56,7 +56,7 @@ async function create(req, res) {
 
   if (serialNumber && serialNumber.trim()) {
     const stolenReport = await prisma.deviceReport.findFirst({
-      where: { serialNumber: { equals: serialNumber.trim(), mode: 'insensitive' }, moderationStatus: 'approved' },
+      where: { serialNumber: { equals: serialNumber.trim(), mode: 'insensitive' }, category, moderationStatus: 'approved' },
     });
     if (stolenReport) {
       throw new ApiError(409, 'الرقم التسلسلي ده متبلّغ عنه كجهاز ' + (stolenReport.status === 'stolen' ? 'مسروق' : 'مفقود') + '، مش هينفع تنشر إعلان بيه');

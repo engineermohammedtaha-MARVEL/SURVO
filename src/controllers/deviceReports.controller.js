@@ -47,14 +47,18 @@ const CATEGORY_LABELS_AR = {
 };
 
 async function lookup(req, res) {
-  const { serialNumber, brand } = req.query;
+  const { serialNumber, brand, category } = req.query;
   if (!serialNumber || !serialNumber.trim()) {
     throw new ApiError(400, 'اكتب الرقم التسلسلي');
+  }
+  if (!category || !category.trim()) {
+    throw new ApiError(400, 'اختار نوع الجهاز');
   }
 
   const report = await prisma.deviceReport.findFirst({
     where: {
       serialNumber: { equals: serialNumber.trim(), mode: 'insensitive' },
+      category: category.trim(),
       moderationStatus: 'approved',
       ...(brand && brand.trim() ? { brand: { equals: brand.trim(), mode: 'insensitive' } } : {}),
     },
