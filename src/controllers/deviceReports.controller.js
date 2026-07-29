@@ -6,8 +6,8 @@ const STATUSES = ['stolen', 'lost'];
 async function create(req, res) {
   const { category, brand, serialNumber, status, details, contactPhone, policeReportUrl, ownershipDocUrl } = req.body;
 
-  if (!category || !serialNumber || !status) {
-    throw new ApiError(400, 'نوع الجهاز والرقم التسلسلي وحالة البلاغ مطلوبين');
+  if (!category || !brand || !serialNumber || !status) {
+    throw new ApiError(400, 'نوع الجهاز والماركة والرقم التسلسلي وحالة البلاغ مطلوبين');
   }
   if (!STATUSES.includes(status)) {
     throw new ApiError(400, 'حالة البلاغ غير صحيحة');
@@ -17,7 +17,7 @@ async function create(req, res) {
     data: {
       reporterId: req.user.id,
       category,
-      brand: brand && brand.trim() ? brand.trim() : undefined,
+      brand: brand.trim(),
       serialNumber: serialNumber.trim(),
       status,
       details: details || undefined,
@@ -54,13 +54,16 @@ async function lookup(req, res) {
   if (!category || !category.trim()) {
     throw new ApiError(400, 'اختار نوع الجهاز');
   }
+  if (!brand || !brand.trim()) {
+    throw new ApiError(400, 'اختار ماركة الجهاز');
+  }
 
   const report = await prisma.deviceReport.findFirst({
     where: {
       serialNumber: { equals: serialNumber.trim(), mode: 'insensitive' },
       category: category.trim(),
+      brand: { equals: brand.trim(), mode: 'insensitive' },
       moderationStatus: 'approved',
-      ...(brand && brand.trim() ? { brand: { equals: brand.trim(), mode: 'insensitive' } } : {}),
     },
     orderBy: { createdAt: 'desc' },
     include: { reporter: { select: { id: true, fullName: true, phone: true } } },
