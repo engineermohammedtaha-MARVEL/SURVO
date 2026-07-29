@@ -198,9 +198,102 @@ async function resolveSupportTicket(req, res) {
   res.json({ success: true, ticket: { id: updated.id, status: updated.status } });
 }
 
+// حساب "الدعم الفني" الثابت اللي الأدمن بيبعت منه رسايل للمستخدمين — اتعمل مرة واحدة بسكريبت
+// scripts/create-support-account.js
+const SUPPORT_PHONE = '00000000000';
+
+async function getSupportUserId() {
+  const user = await prisma.user.findUnique({ where: { phone: SUPPORT_PHONE }, select: { id: true } });
+  if (!user) throw new ApiError(500, 'حساب الدعم الفني مش موجود، شغّل scripts/create-support-account.js الأول');
+  return user.id;
+}
+
+async function searchUsers(req, res) {
+  const { q } = req.query;
+  const term = (q || '').trim();
+  if (!term) {
+    res.json({ success: true, users: [] });
+    return;
+  }
+
+  const users = await prisma.user.findMany({
+    where: {
+      phone: { not: SUPPORT_PHONE },
+      OR: [
+        { fullName: { contains: term, mode: 'insensitive' } },
+        { phone: { contains: term } },
+        { email: { contains: term, mode: 'insensitive' } },
+      ],
+    },
+    select: { id: true, fullName: true, phone: true, email: true, accountType: true, accountStatus: true },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+  res.json({ success: true, users });
+}
+
+async function sendAdminMessage(req, res) {
+  const { userId, body } = req.body;
+  if (!userId || !body || !body.trim()) throw new ApiError(400, 'المستخدم ونص الرسالة مطلوبين');
+
+  const target = await prisma.user.findUnique({ where: { id: userId } });
+  if (!target) throw new ApiError(404, 'المستخدم غير موجود');
+
+  const supportUserId = await getSupportUserId();
+  if (userId === supportUserId) throw new ApiError(400, 'مينفعش تبعت رسالة لحساب الدعم الفني نفسه');
+
+  const [userAId, userBId] = [supportUserId, userId].sort();
+  const conversation = await prisma.conversation.upsert({
+    where: { userAId_userBId: { userAId, userBId } },
+    update: {},
+    create: { userAId, userBId },
+  });
+
+  const message = await prisma.message.create({
+    data: { conversationId: conversation.id, senderId: supportUserId, body: body.trim() },
+  });
+
+  await prisma.notification.create({
+    data: {
+      userId,
+      title: 'رسالة من الدعم الفني',
+      body: body.trim().slice(0, 80),
+      contactUserId: supportUserId,
+    },
+  });
+
+  res.status(201).json({ success: true, message });
+}
+
+async function listAdminConversations(req, res) {
+  const supportUserId = await getSupportUserId();
+  const conversations = await prisma.conversation.findMany({
+    where: { OR: [{ userAId: supportUserId }, { userBId: supportUserId }] },
+    include: {
+      userA: { select: { id: true, fullName: true, phone: true } },
+      userB: { select: { id: true, fullName: true, phone: true } },
+      messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json({ success: true, conversations, supportUserId });
+}
+
+async function getAdminConversationMessages(req, res) {
+  const conversation = await prisma.conversation.findUnique({ where: { id: req.params.id } });
+  if (!conversation) throw new ApiError(404, 'المحادثة غير موجودة');
+
+  const messages = await prisma.message.findMany({
+    where: { conversationId: req.params.id },
+    orderBy: { createdAt: 'asc' },
+  });
+  res.json({ success: true, messages });
+}
+
 module.exports = {
   listPendingUsers, approveUser, rejectUser,
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
   listPendingEquipment, approveEquipment, rejectEquipment,
   listOpenSupportTickets, resolveSupportTicket,
+  searchUsers, sendAdminMessage, listAdminConversations, getAdminConversationMessages,
 };

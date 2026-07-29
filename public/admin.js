@@ -351,11 +351,148 @@ async function actTicket(id) {
   }
 }
 
+// ============ التواصل مع مستخدم ============
+let selectedUserForMessage = null;
+
+function userResultRowEl(u) {
+  const row = document.createElement('div');
+  row.className = 'card';
+  row.style.cursor = 'pointer';
+  row.innerHTML =
+    '<div class="card-header"><div class="card-name">' + u.fullName + '</div></div>' +
+    '<div class="card-meta">' +
+    '<span>📱 ' + u.phone + '</span>' +
+    '<span>✉️ ' + (u.email || '—') + '</span>' +
+    '<span>' + (ACCOUNT_TYPE_LABELS[u.accountType] || u.accountType) + '</span>' +
+    '</div>';
+  row.addEventListener('click', function () {
+    selectedUserForMessage = u;
+    document.getElementById('messageComposeTarget').textContent = 'الرسالة هتتبعت لـ: ' + u.fullName + ' (' + u.phone + ')';
+    document.getElementById('messageComposeBox').style.display = 'block';
+  });
+  return row;
+}
+
+async function searchUsersUI() {
+  const errorBox = document.getElementById('errorBox');
+  const term = document.getElementById('userSearchInput').value.trim();
+  const resultsWrap = document.getElementById('userSearchResults');
+  resultsWrap.innerHTML = '';
+  if (!term) return;
+  try {
+    const data = await apiCall('/users/search?q=' + encodeURIComponent(term));
+    if (!data.users.length) {
+      resultsWrap.innerHTML = '<div class="empty">مفيش مستخدمين مطابقين</div>';
+      return;
+    }
+    data.users.forEach(function (u) { resultsWrap.appendChild(userResultRowEl(u)); });
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر البحث';
+  }
+}
+
+async function sendAdminMessageUI() {
+  const errorBox = document.getElementById('errorBox');
+  const textEl = document.getElementById('adminMessageText');
+  const body = textEl.value.trim();
+  if (!selectedUserForMessage || !body) return;
+  try {
+    await apiCall('/messages', {
+      method: 'POST',
+      body: JSON.stringify({ userId: selectedUserForMessage.id, body }),
+    });
+    textEl.value = '';
+    document.getElementById('messageComposeBox').style.display = 'none';
+    document.getElementById('userSearchResults').innerHTML = '';
+    document.getElementById('userSearchInput').value = '';
+    selectedUserForMessage = null;
+    loadAdminConversations();
+    alert('تم إرسال الرسالة ✓');
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر إرسال الرسالة';
+  }
+}
+
+// ============ محادثات الدعم الفني ============
+let currentAdminConversationOtherUser = null;
+
+function adminConversationRowEl(conv, supportUserId) {
+  const other = conv.userAId === supportUserId ? conv.userB : conv.userA;
+  const lastMsg = (conv.messages && conv.messages[0]) || null;
+  const row = document.createElement('div');
+  row.className = 'card';
+  row.style.cursor = 'pointer';
+  row.innerHTML =
+    '<div class="card-header"><div class="card-name">' + other.fullName + '</div></div>' +
+    '<div class="card-meta"><span>📱 ' + other.phone + '</span></div>' +
+    (lastMsg ? '<div class="card-bio">' + lastMsg.body + '</div>' : '');
+  row.addEventListener('click', function () { openAdminConversationThread(conv.id, other); });
+  return row;
+}
+
+async function loadAdminConversations() {
+  const errorBox = document.getElementById('errorBox');
+  try {
+    const data = await apiCall('/messages/conversations');
+    const wrap = document.getElementById('adminConversationsWrap');
+    const empty = document.getElementById('adminConversationsEmptyBox');
+    wrap.innerHTML = '';
+    if (!data.conversations.length) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.conversations.forEach(function (c) { wrap.appendChild(adminConversationRowEl(c, data.supportUserId)); });
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر تحميل محادثات الدعم الفني';
+  }
+}
+
+async function openAdminConversationThread(conversationId, otherUser) {
+  const errorBox = document.getElementById('errorBox');
+  currentAdminConversationOtherUser = otherUser;
+  const threadBox = document.getElementById('adminConversationThreadBox');
+  const messagesWrap = document.getElementById('adminConversationMessages');
+  document.getElementById('adminConversationThreadTitle').textContent = 'المحادثة مع ' + otherUser.fullName;
+  threadBox.style.display = 'block';
+  try {
+    const data = await apiCall('/messages/conversations/' + conversationId);
+    messagesWrap.innerHTML = data.messages.map(function (m) {
+      const isSupport = m.senderId !== otherUser.id;
+      return '<div class="card" style="' + (isSupport ? 'background:#EFF6FF;' : '') + '"><b>' + (isSupport ? 'الدعم الفني' : otherUser.fullName) + ':</b> ' + m.body + '</div>';
+    }).join('');
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر تحميل المحادثة';
+  }
+}
+
+async function sendAdminReplyUI() {
+  const errorBox = document.getElementById('errorBox');
+  const textEl = document.getElementById('adminConversationReplyText');
+  const body = textEl.value.trim();
+  if (!currentAdminConversationOtherUser || !body) return;
+  try {
+    await apiCall('/messages', {
+      method: 'POST',
+      body: JSON.stringify({ userId: currentAdminConversationOtherUser.id, body }),
+    });
+    textEl.value = '';
+    loadAdminConversations();
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر إرسال الرد';
+  }
+}
+
+document.getElementById('userSearchBtn').addEventListener('click', searchUsersUI);
+document.getElementById('sendAdminMessageBtn').addEventListener('click', sendAdminMessageUI);
+document.getElementById('adminConversationReplyBtn').addEventListener('click', sendAdminReplyUI);
+
 function loadAll() {
   loadUsers();
   loadDeviceReports();
   loadPendingEquipment();
   loadSupportTickets();
+  loadAdminConversations();
 }
 
 document.getElementById('loadBtn').addEventListener('click', loadAll);

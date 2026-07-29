@@ -33,6 +33,28 @@
   <div id="ticketsWrap"></div>
   <div id="ticketsEmptyBox" class="empty" style="display:none;">مفيش رسائل دعم فني مفتوحة دلوقتي</div>
 
+  <h2 class="section-title">التواصل مع مستخدم</h2>
+  <div class="secret-row">
+    <input type="text" id="userSearchInput" placeholder="دوّر بالاسم أو رقم الموبايل أو الإيميل">
+    <button id="userSearchBtn">دور</button>
+  </div>
+  <div id="userSearchResults"></div>
+  <div id="messageComposeBox" style="display:none;">
+    <div id="messageComposeTarget"></div>
+    <textarea id="adminMessageText" rows="3" placeholder="اكتب رسالتك للمستخدم" style="width:100%; box-sizing:border-box; margin-top:8px;"></textarea>
+    <button id="sendAdminMessageBtn" style="margin-top:8px;">إرسال</button>
+  </div>
+
+  <h2 class="section-title">محادثات الدعم الفني</h2>
+  <div id="adminConversationsWrap"></div>
+  <div id="adminConversationsEmptyBox" class="empty" style="display:none;">مفيش محادثات دعم فني لسه</div>
+  <div id="adminConversationThreadBox" style="display:none;">
+    <h3 id="adminConversationThreadTitle"></h3>
+    <div id="adminConversationMessages"></div>
+    <textarea id="adminConversationReplyText" rows="3" placeholder="اكتب ردك" style="width:100%; box-sizing:border-box; margin-top:8px;"></textarea>
+    <button id="adminConversationReplyBtn" style="margin-top:8px;">رد</button>
+  </div>
+
 <script src="admin.js"></script>
 </body>
 </html>

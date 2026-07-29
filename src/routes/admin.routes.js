@@ -6,6 +6,7 @@ const {
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
   listPendingEquipment, approveEquipment, rejectEquipment,
   listOpenSupportTickets, resolveSupportTicket,
+  searchUsers, sendAdminMessage, listAdminConversations, getAdminConversationMessages,
 } = require('../controllers/admin.controller');
 
 // دفاع إضافي ضد محاولات تخمين ADMIN_SECRET
@@ -29,5 +30,9 @@ router.post('/equipment/:id/approve', approveEquipment);
 router.post('/equipment/:id/reject', rejectEquipment);
 router.get('/support-tickets/open', listOpenSupportTickets);
 router.post('/support-tickets/:id/resolve', resolveSupportTicket);
+router.get('/users/search', searchUsers);
+router.post('/messages', sendAdminMessage);
+router.get('/messages/conversations', listAdminConversations);
+router.get('/messages/conversations/:id', getAdminConversationMessages);
 
 module.exports = router;
