@@ -17,7 +17,7 @@ async function create(req, res) {
     data: {
       reporterId: req.user.id,
       category,
-      brand: brand || undefined,
+      brand: brand && brand.trim() ? brand.trim() : undefined,
       serialNumber: serialNumber.trim(),
       status,
       details: details || undefined,
@@ -47,13 +47,17 @@ const CATEGORY_LABELS_AR = {
 };
 
 async function lookup(req, res) {
-  const { serialNumber } = req.query;
+  const { serialNumber, brand } = req.query;
   if (!serialNumber || !serialNumber.trim()) {
     throw new ApiError(400, 'اكتب الرقم التسلسلي');
   }
 
   const report = await prisma.deviceReport.findFirst({
-    where: { serialNumber: serialNumber.trim(), moderationStatus: 'approved' },
+    where: {
+      serialNumber: { equals: serialNumber.trim(), mode: 'insensitive' },
+      moderationStatus: 'approved',
+      ...(brand && brand.trim() ? { brand: { equals: brand.trim(), mode: 'insensitive' } } : {}),
+    },
     orderBy: { createdAt: 'desc' },
     include: { reporter: { select: { id: true, fullName: true, phone: true } } },
   });

@@ -76,7 +76,7 @@ async function sendMessage(req, res) {
 
   const recipientId = conversation.userAId === req.user.id ? conversation.userBId : conversation.userAId;
   await prisma.notification.create({
-    data: { userId: recipientId, title: 'رسالة جديدة', body: body.trim().slice(0, 80) },
+    data: { userId: recipientId, title: 'رسالة جديدة', body: body.trim().slice(0, 80), contactUserId: req.user.id },
   });
 
   res.status(201).json({ success: true, message });
