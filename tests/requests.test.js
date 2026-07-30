@@ -80,6 +80,28 @@ test('owner can edit their own rental request, other users cannot', async () => 
   assert.equal(fetchRes.body.item.details, 'updated details');
 });
 
+test('request brand is stored for device categories and cleared for accessories', async () => {
+  const owner = await createApprovedUser();
+  createdUserIds.push(owner.id);
+
+  const createRes = await request(app)
+    .post('/api/requests')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ category: 'gps', type: 'rent', brand: 'Leica', details: 'brand test' });
+  assert.equal(createRes.status, 201);
+  assert.equal(createRes.body.item.brand, 'Leica');
+  const requestId = createRes.body.item.id;
+
+  const editToAccessoriesRes = await request(app)
+    .patch('/api/requests/' + requestId)
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ category: 'accessories', brand: 'Sokkia' });
+  assert.equal(editToAccessoriesRes.status, 200);
+  assert.equal(editToAccessoriesRes.body.item.brand, null, 'brand should be cleared once the request is for accessories');
+
+  await request(app).delete('/api/requests/' + requestId).set('Authorization', 'Bearer ' + owner.token);
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await prisma.rentalRequest.deleteMany({ where: { requesterId: id } });

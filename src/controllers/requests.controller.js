@@ -16,7 +16,7 @@ async function list(req, res) {
 }
 
 async function create(req, res) {
-  const { category, type, details, dateFrom, dateTo, governorate, budget, equipmentId } = req.body;
+  const { category, brand, type, details, dateFrom, dateTo, governorate, budget, equipmentId } = req.body;
 
   if (!category || !type) {
     throw new ApiError(400, 'نوع الجهاز ونوع الطلب (إيجار/شراء) مطلوبين');
@@ -43,6 +43,7 @@ async function create(req, res) {
       requesterId: req.user.id,
       equipmentId,
       category,
+      brand: category === 'accessories' ? null : (brand || null),
       type,
       details,
       dateFrom: parsedFrom,
@@ -91,8 +92,9 @@ async function update(req, res) {
   if (!existing) throw new ApiError(404, 'الطلب غير موجود');
   if (existing.requesterId !== req.user.id) throw new ApiError(403, 'مش مسموح لك تعدّل الطلب ده');
 
-  const { category, type, details, dateFrom, dateTo, governorate, budget } = req.body;
+  const { category, brand, type, details, dateFrom, dateTo, governorate, budget } = req.body;
   const nextType = type || existing.type;
+  const nextCategory = category || existing.category;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -115,7 +117,8 @@ async function update(req, res) {
   const item = await prisma.rentalRequest.update({
     where: { id: req.params.id },
     data: {
-      category: category || existing.category,
+      category: nextCategory,
+      brand: nextCategory === 'accessories' ? null : (brand !== undefined ? (brand || null) : existing.brand),
       type: nextType,
       details: details !== undefined ? details : existing.details,
       dateFrom: parsedFrom,

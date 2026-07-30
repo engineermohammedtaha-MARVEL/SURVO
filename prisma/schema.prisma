@@ -172,6 +172,7 @@ model RentalRequest {
   equipmentId   String?
   equipment     Equipment?    @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
   category      EquipmentCategory
+  brand         String?
   type          RequestType
   details       String?
   dateFrom      DateTime?
