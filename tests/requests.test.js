@@ -50,6 +50,36 @@ test('deleting a rental request requires authentication', async () => {
   await request(app).delete('/api/requests/' + requestId).set('Authorization', 'Bearer ' + owner.token);
 });
 
+test('owner can edit their own rental request, other users cannot', async () => {
+  const owner = await createApprovedUser();
+  const stranger = await createApprovedUser();
+  createdUserIds.push(owner.id, stranger.id);
+
+  const createRes = await request(app)
+    .post('/api/requests')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ category: 'gps', type: 'rent', details: 'original details', governorate: 'Cairo' });
+  const requestId = createRes.body.item.id;
+
+  const strangerEditRes = await request(app)
+    .patch('/api/requests/' + requestId)
+    .set('Authorization', 'Bearer ' + stranger.token)
+    .send({ details: 'hijacked details' });
+  assert.equal(strangerEditRes.status, 403);
+
+  const ownerEditRes = await request(app)
+    .patch('/api/requests/' + requestId)
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ category: 'totalstation', details: 'updated details', governorate: 'Giza' });
+  assert.equal(ownerEditRes.status, 200);
+  assert.equal(ownerEditRes.body.item.category, 'totalstation');
+  assert.equal(ownerEditRes.body.item.details, 'updated details');
+  assert.equal(ownerEditRes.body.item.governorate, 'Giza');
+
+  const fetchRes = await request(app).get('/api/requests/' + requestId);
+  assert.equal(fetchRes.body.item.details, 'updated details');
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await prisma.rentalRequest.deleteMany({ where: { requesterId: id } });

@@ -68,6 +68,7 @@ async function myRequests(req, res) {
   const items = await prisma.rentalRequest.findMany({
     where: { requesterId: req.user.id },
     orderBy: { createdAt: 'desc' },
+    include: { requester: { select: { id: true, fullName: true, phone: true, rating: true, verification: true } } },
   });
   res.json({ success: true, items });
 }
@@ -85,6 +86,48 @@ async function updateStatus(req, res) {
   res.json({ success: true, item });
 }
 
+async function update(req, res) {
+  const existing = await prisma.rentalRequest.findUnique({ where: { id: req.params.id } });
+  if (!existing) throw new ApiError(404, 'الطلب غير موجود');
+  if (existing.requesterId !== req.user.id) throw new ApiError(403, 'مش مسموح لك تعدّل الطلب ده');
+
+  const { category, type, details, dateFrom, dateTo, governorate, budget } = req.body;
+  const nextType = type || existing.type;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let parsedFrom = dateFrom !== undefined ? (dateFrom ? new Date(dateFrom) : null) : existing.dateFrom;
+  let parsedTo = dateTo !== undefined ? (dateTo ? new Date(dateTo) : null) : existing.dateTo;
+
+  if (nextType === 'rent') {
+    if (parsedFrom && parsedFrom < today) {
+      throw new ApiError(400, 'مينفعش تختار تاريخ قبل النهاردة');
+    }
+    if (parsedTo && parsedFrom && parsedTo < parsedFrom) {
+      throw new ApiError(400, 'تاريخ النهاية لازم يكون بعد تاريخ البداية');
+    }
+  } else {
+    parsedFrom = null;
+    parsedTo = null;
+  }
+
+  const item = await prisma.rentalRequest.update({
+    where: { id: req.params.id },
+    data: {
+      category: category || existing.category,
+      type: nextType,
+      details: details !== undefined ? details : existing.details,
+      dateFrom: parsedFrom,
+      dateTo: parsedTo,
+      governorate: governorate !== undefined ? governorate : existing.governorate,
+      budget: budget !== undefined ? budget : existing.budget,
+    },
+  });
+
+  res.json({ success: true, item });
+}
+
 async function remove(req, res) {
   const existing = await prisma.rentalRequest.findUnique({ where: { id: req.params.id } });
   if (!existing) throw new ApiError(404, 'الطلب غير موجود');
@@ -94,4 +137,4 @@ async function remove(req, res) {
   res.json({ success: true });
 }
 
-module.exports = { list, getOne, create, myRequests, updateStatus, remove };
+module.exports = { list, getOne, create, myRequests, updateStatus, update, remove };
