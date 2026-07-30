@@ -98,12 +98,42 @@ async function update(req, res) {
   if (!existing) throw new ApiError(404, 'الجهاز غير موجود');
   if (existing.ownerId !== req.user.id) throw new ApiError(403, 'مش مسموح لك تعدل الإعلان ده');
 
-  const fields = ['title', 'description', 'pricePerDay', 'salePrice', 'governorate', 'images', 'available'];
+  const { category, serialNumber } = req.body;
+  const nextCategory = category !== undefined ? category : existing.category;
+  const nextSerialNumber = serialNumber !== undefined ? serialNumber : existing.serialNumber;
+
+  if (nextSerialNumber && nextSerialNumber.trim()) {
+    const stolenReport = await prisma.deviceReport.findFirst({
+      where: {
+        serialNumber: { equals: nextSerialNumber.trim(), mode: 'insensitive' },
+        category: nextCategory,
+        moderationStatus: 'approved',
+      },
+    });
+    if (stolenReport) {
+      throw new ApiError(409, 'الرقم التسلسلي ده متبلّغ عنه كجهاز ' + (stolenReport.status === 'stolen' ? 'مسروق' : 'مفقود') + '، مش هينفع تنشر إعلان بيه');
+    }
+  }
+
+  const fields = ['title', 'category', 'listingType', 'description', 'pricePerDay', 'salePrice', 'governorate', 'images', 'available', 'serialNumber'];
   const data = {};
   for (const f of fields) if (req.body[f] !== undefined) data[f] = req.body[f];
 
+  // أي تعديل على الإعلان لازم يترجع لمراجعة الأدمن تاني قبل ما يظهر للناس تاني —
+  // عشان نضمن إن التعديل اتشاف والجهاز لسه مفيهوش بلاغات أو مشاكل قبل ما ينزل بالبيانات الجديدة
+  const moderationStatus = nextCategory === 'accessories' ? 'approved' : 'pending';
+  data.moderationStatus = moderationStatus;
+
   const item = await prisma.equipment.update({ where: { id: req.params.id }, data });
-  res.json({ success: true, item });
+
+  res.json({
+    success: true,
+    item,
+    pendingReview: moderationStatus === 'pending',
+    message: moderationStatus === 'pending'
+      ? 'تم حفظ التعديلات، وهيتم مراجعتها والتأكد منها قبل ما يظهر إعلانك تاني للمستخدمين'
+      : 'تم حفظ التعديلات بنجاح',
+  });
 }
 
 async function remove(req, res) {
