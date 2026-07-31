@@ -11,48 +11,56 @@
   <h1>لوحة الإدارة — SURVO</h1>
   <div class="subtitle">الحسابات وبلاغات الأجهزة اللي محتاجة مراجعة</div>
 
-  <div class="secret-row">
-    <input type="password" id="secretInput" placeholder="الصق مفتاح الأدمن (ADMIN_SECRET)">
-    <button id="loadBtn">دخول / تحديث</button>
+  <div id="adminLoginBox" class="secret-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+    <input type="text" id="adminLoginPhone" placeholder="رقم موبايل أو إيميل حساب الأدمن">
+    <input type="password" id="adminLoginPassword" placeholder="كلمة المرور">
+    <button id="adminLoginBtn">دخول</button>
   </div>
   <div id="errorBox" class="error"></div>
 
-  <h2 class="section-title">الحسابات المعلّقة</h2>
-  <div id="cardsWrap"></div>
-  <div id="emptyBox" class="empty" style="display:none;">مفيش حسابات محتاجة مراجعة دلوقتي</div>
+  <div id="dashboardWrap" style="display:none;">
+    <div class="secret-row">
+      <button id="loadBtn">تحديث</button>
+      <button id="adminLogoutBtn">تسجيل خروج</button>
+    </div>
 
-  <h2 class="section-title">بلاغات الأجهزة المفقودة/المسروقة</h2>
-  <div id="reportsWrap"></div>
-  <div id="reportsEmptyBox" class="empty" style="display:none;">مفيش بلاغات محتاجة مراجعة دلوقتي</div>
+    <h2 class="section-title">الحسابات المعلّقة</h2>
+    <div id="cardsWrap"></div>
+    <div id="emptyBox" class="empty" style="display:none;">مفيش حسابات محتاجة مراجعة دلوقتي</div>
 
-  <h2 class="section-title">إعلانات أجهزة قيد المراجعة</h2>
-  <div id="equipmentWrap"></div>
-  <div id="equipmentEmptyBox" class="empty" style="display:none;">مفيش إعلانات محتاجة مراجعة دلوقتي</div>
+    <h2 class="section-title">بلاغات الأجهزة المفقودة/المسروقة</h2>
+    <div id="reportsWrap"></div>
+    <div id="reportsEmptyBox" class="empty" style="display:none;">مفيش بلاغات محتاجة مراجعة دلوقتي</div>
 
-  <h2 class="section-title">رسائل الدعم الفني</h2>
-  <div id="ticketsWrap"></div>
-  <div id="ticketsEmptyBox" class="empty" style="display:none;">مفيش رسائل دعم فني مفتوحة دلوقتي</div>
+    <h2 class="section-title">إعلانات أجهزة قيد المراجعة</h2>
+    <div id="equipmentWrap"></div>
+    <div id="equipmentEmptyBox" class="empty" style="display:none;">مفيش إعلانات محتاجة مراجعة دلوقتي</div>
 
-  <h2 class="section-title">التواصل مع مستخدم</h2>
-  <div class="secret-row">
-    <input type="text" id="userSearchInput" placeholder="دوّر بالاسم أو رقم الموبايل أو الإيميل">
-    <button id="userSearchBtn">دور</button>
-  </div>
-  <div id="userSearchResults"></div>
-  <div id="messageComposeBox" style="display:none;">
-    <div id="messageComposeTarget"></div>
-    <textarea id="adminMessageText" rows="3" placeholder="اكتب رسالتك للمستخدم" style="width:100%; box-sizing:border-box; margin-top:8px;"></textarea>
-    <button id="sendAdminMessageBtn" style="margin-top:8px;">إرسال</button>
-  </div>
+    <h2 class="section-title">رسائل الدعم الفني</h2>
+    <div id="ticketsWrap"></div>
+    <div id="ticketsEmptyBox" class="empty" style="display:none;">مفيش رسائل دعم فني مفتوحة دلوقتي</div>
 
-  <h2 class="section-title">محادثات الدعم الفني</h2>
-  <div id="adminConversationsWrap"></div>
-  <div id="adminConversationsEmptyBox" class="empty" style="display:none;">مفيش محادثات دعم فني لسه</div>
-  <div id="adminConversationThreadBox" style="display:none;">
-    <h3 id="adminConversationThreadTitle"></h3>
-    <div id="adminConversationMessages"></div>
-    <textarea id="adminConversationReplyText" rows="3" placeholder="اكتب ردك" style="width:100%; box-sizing:border-box; margin-top:8px;"></textarea>
-    <button id="adminConversationReplyBtn" style="margin-top:8px;">رد</button>
+    <h2 class="section-title">التواصل مع مستخدم</h2>
+    <div class="secret-row">
+      <input type="text" id="userSearchInput" placeholder="دوّر بالاسم أو رقم الموبايل أو الإيميل">
+      <button id="userSearchBtn">دور</button>
+    </div>
+    <div id="userSearchResults"></div>
+    <div id="messageComposeBox" style="display:none;">
+      <div id="messageComposeTarget"></div>
+      <textarea id="adminMessageText" rows="3" placeholder="اكتب رسالتك للمستخدم" style="width:100%; box-sizing:border-box; margin-top:8px;"></textarea>
+      <button id="sendAdminMessageBtn" style="margin-top:8px;">إرسال</button>
+    </div>
+
+    <h2 class="section-title">محادثات الدعم الفني</h2>
+    <div id="adminConversationsWrap"></div>
+    <div id="adminConversationsEmptyBox" class="empty" style="display:none;">مفيش محادثات دعم فني لسه</div>
+    <div id="adminConversationThreadBox" style="display:none;">
+      <h3 id="adminConversationThreadTitle"></h3>
+      <div id="adminConversationMessages"></div>
+      <textarea id="adminConversationReplyText" rows="3" placeholder="اكتب ردك" style="width:100%; box-sizing:border-box; margin-top:8px;"></textarea>
+      <button id="adminConversationReplyBtn" style="margin-top:8px;">رد</button>
+    </div>
   </div>
 
 <script src="admin.js"></script>

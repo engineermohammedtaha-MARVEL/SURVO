@@ -7,12 +7,12 @@ const prisma = require('../config/db');
 async function loadValidUser(payload) {
   const user = await prisma.user.findUnique({
     where: { id: payload.id },
-    select: { id: true, accountType: true, accountStatus: true, tokenVersion: true },
+    select: { id: true, accountType: true, accountStatus: true, tokenVersion: true, isAdmin: true },
   });
   if (!user) return null;
   if (user.accountStatus !== 'approved') return null;
   if ((user.tokenVersion || 0) !== (payload.tokenVersion || 0)) return null;
-  return { id: user.id, accountType: user.accountType };
+  return { id: user.id, accountType: user.accountType, isAdmin: user.isAdmin };
 }
 
 /**
@@ -61,4 +61,4 @@ async function optionalAuth(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, optionalAuth };
+module.exports = { requireAuth, optionalAuth, loadValidUser };

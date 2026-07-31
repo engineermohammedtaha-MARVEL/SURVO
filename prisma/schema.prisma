@@ -115,6 +115,7 @@ model User {
   resetTokenHash    String?       // هاش توكن إعادة تعيين كلمة المرور
   resetTokenExpiresAt DateTime?
   tokenVersion      Int           @default(0) // بيتزود لما كلمة السر تتغير، عشان أي توكن JWT قديم يبطل فورًا
+  isAdmin           Boolean       @default(false) // صلاحيات لوحة تحكم الأدمن
   rating            Float         @default(0)
   ratingCount       Int           @default(0)
   createdAt         DateTime      @default(now())

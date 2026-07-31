@@ -1,17 +1,28 @@
-const crypto = require('crypto');
+const { verifyToken } = require('../utils/jwt');
 const ApiError = require('../utils/apiError');
+const { loadValidUser } = require('./auth');
 
-function safeEqual(a, b) {
-  const hashA = crypto.createHash('sha256').update(String(a)).digest();
-  const hashB = crypto.createHash('sha256').update(String(b)).digest();
-  return crypto.timingSafeEqual(hashA, hashB);
-}
+// دخول الأدمن دلوقتي بقى بحساب حقيقي (JWT + isAdmin في الداتابيز) بدل مفتاح سري
+// واحد مشترك بين كل حد — بنعمل تحقق حي من الداتابيز في كل طلب عشان أي رجوع عن
+// صلاحية الأدمن يتفعّل فورًا، مش لما التوكن ينتهي طبيعيًا
+async function requireAdmin(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) throw new ApiError(401, 'سجّل الدخول بحساب الأدمن أولاً');
 
-function requireAdmin(req, res, next) {
-  const secret = req.headers['x-admin-secret'];
-  if (!secret || !process.env.ADMIN_SECRET || !safeEqual(secret, process.env.ADMIN_SECRET)) {
-    throw new ApiError(401, 'مش مصرح لك بالدخول هنا');
+  let payload;
+  try {
+    payload = verifyToken(token);
+  } catch (err) {
+    throw new ApiError(401, 'الجلسة منتهية أو غير صالحة، سجّل الدخول تاني');
   }
+
+  const user = await loadValidUser(payload);
+  if (!user || !user.isAdmin) {
+    throw new ApiError(403, 'الحساب ده مش عنده صلاحيات أدمن');
+  }
+
+  req.user = user;
   next();
 }
 

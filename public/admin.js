@@ -1,5 +1,13 @@
 const API_BASE = location.origin + '/api/admin';
 
+// أي نص جاي من مستخدم (اسم، بايو، وصف إعلان، إلخ) لازم يعدي من هنا قبل ما يتحط
+// في innerHTML، عشان نمنع حقن HTML/script يتنفذ في جلسة الأدمن نفسها
+function escapeHtml(value) {
+  return String(value === null || value === undefined ? '' : value).replace(/[&<>"']/g, function (ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
+
 const ACCOUNT_TYPE_LABELS = {
   engineer: 'مهندس مساحة',
   specialist: 'أخصائي مساحة',
@@ -18,19 +26,67 @@ const DOC_LABELS = {
   commercialRecordUrl: '📄 السجل التجاري',
 };
 
-function getSecret() {
-  const s = document.getElementById('secretInput').value.trim();
-  if (s) localStorage.setItem('survo_admin_secret', s);
-  return s || localStorage.getItem('survo_admin_secret') || '';
+function getAdminToken() {
+  return localStorage.getItem('survo_admin_token') || '';
+}
+
+function setAdminToken(token) {
+  if (token) localStorage.setItem('survo_admin_token', token);
+  else localStorage.removeItem('survo_admin_token');
+}
+
+function showLoggedOutUI() {
+  document.getElementById('adminLoginBox').style.display = '';
+  document.getElementById('dashboardWrap').style.display = 'none';
+}
+
+function showLoggedInUI() {
+  document.getElementById('adminLoginBox').style.display = 'none';
+  document.getElementById('dashboardWrap').style.display = '';
 }
 
 async function apiCall(path, options) {
   const res = await fetch(API_BASE + path, Object.assign({}, options, {
-    headers: Object.assign({ 'Content-Type': 'application/json', 'X-Admin-Secret': getSecret() }, (options && options.headers) || {}),
+    headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + getAdminToken() }, (options && options.headers) || {}),
   }));
   const data = await res.json().catch(function () { return null; });
+  if (res.status === 401 || res.status === 403) {
+    setAdminToken(null);
+    showLoggedOutUI();
+  }
   if (!res.ok) throw new Error((data && data.message) || 'حصل خطأ');
   return data;
+}
+
+async function adminLogin() {
+  const errorBox = document.getElementById('errorBox');
+  errorBox.textContent = '';
+  const identifier = document.getElementById('adminLoginPhone').value.trim();
+  const password = document.getElementById('adminLoginPassword').value;
+  if (!identifier || !password) {
+    errorBox.textContent = 'اكتب رقم الموبايل أو الإيميل وكلمة المرور';
+    return;
+  }
+  try {
+    const res = await fetch(location.origin + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: identifier, password }),
+    });
+    const data = await res.json().catch(function () { return null; });
+    if (!res.ok || !data || !data.token) throw new Error((data && data.message) || 'فشل تسجيل الدخول');
+    setAdminToken(data.token);
+    document.getElementById('adminLoginPassword').value = '';
+    showLoggedInUI();
+    loadAll();
+  } catch (err) {
+    errorBox.textContent = err.message || 'فشل تسجيل الدخول';
+  }
+}
+
+function adminLogout() {
+  setAdminToken(null);
+  showLoggedOutUI();
 }
 
 function cardEl(u) {
@@ -43,23 +99,23 @@ function cardEl(u) {
 
   card.innerHTML =
     '<div class="card-header">' +
-    '<div class="card-name">' + u.fullName + '</div>' +
+    '<div class="card-name">' + escapeHtml(u.fullName) + '</div>' +
     '<div class="card-date">' + date + '</div>' +
     '</div>' +
     '<div class="card-meta">' +
-    '<span>📱 ' + u.phone + '</span>' +
-    '<span>✉️ ' + (u.email || '—') + '</span>' +
-    '<span>' + (ACCOUNT_TYPE_LABELS[u.accountType] || u.accountType) + '</span>' +
-    '<span>📍 ' + (u.governorate || '—') + '</span>' +
+    '<span>📱 ' + escapeHtml(u.phone) + '</span>' +
+    '<span>✉️ ' + escapeHtml(u.email || '—') + '</span>' +
+    '<span>' + escapeHtml(ACCOUNT_TYPE_LABELS[u.accountType] || u.accountType) + '</span>' +
+    '<span>📍 ' + escapeHtml(u.governorate || '—') + '</span>' +
     '</div>' +
-    (u.bio ? '<div class="card-bio">' + u.bio + '</div>' : '') +
+    (u.bio ? '<div class="card-bio">' + escapeHtml(u.bio) + '</div>' : '') +
     (u.specialties && u.specialties.length
-      ? '<div class="card-tags">' + u.specialties.map(function (s) { return '<span class="tag">' + s + '</span>'; }).join('') + '</div>'
+      ? '<div class="card-tags">' + u.specialties.map(function (s) { return '<span class="tag">' + escapeHtml(s) + '</span>'; }).join('') + '</div>'
       : '') +
     '<div class="docs-label">المستندات المرفوعة</div>' +
     (docs.length
       ? '<div class="docs-row">' + docs.map(function (key) {
-          return '<a class="doc-link" target="_blank" rel="noopener" href="' + u[key] + '">' + DOC_LABELS[key] + '</a>';
+          return '<a class="doc-link" target="_blank" rel="noopener" href="' + escapeHtml(u[key]) + '">' + DOC_LABELS[key] + '</a>';
         }).join('') + '</div>'
       : '<div class="no-docs">⚠ المستخدم لسه ما رفعش أي مستندات توثيق</div>') +
     '<div class="actions"></div>';
@@ -136,20 +192,20 @@ function reportCardEl(r) {
 
   card.innerHTML =
     '<div class="card-header">' +
-    '<div class="card-name">' + (DEVICE_CATEGORY_LABELS[r.category] || r.category) + (r.brand ? ' — ' + r.brand : '') + '</div>' +
+    '<div class="card-name">' + escapeHtml(DEVICE_CATEGORY_LABELS[r.category] || r.category) + (r.brand ? ' — ' + escapeHtml(r.brand) : '') + '</div>' +
     '<div class="card-date">' + date + '</div>' +
     '</div>' +
     '<div class="card-meta">' +
-    '<span class="report-status ' + r.status + '">' + (r.status === 'stolen' ? 'مسروق' : 'مفقود') + '</span>' +
-    '<span>🔢 ' + r.serialNumber + '</span>' +
-    '<span>👤 ' + (r.reporter ? r.reporter.fullName : '—') + '</span>' +
-    '<span>📱 ' + (r.contactPhone || (r.reporter ? r.reporter.phone : '—')) + '</span>' +
+    '<span class="report-status ' + escapeHtml(r.status) + '">' + (r.status === 'stolen' ? 'مسروق' : 'مفقود') + '</span>' +
+    '<span>🔢 ' + escapeHtml(r.serialNumber) + '</span>' +
+    '<span>👤 ' + escapeHtml(r.reporter ? r.reporter.fullName : '—') + '</span>' +
+    '<span>📱 ' + escapeHtml(r.contactPhone || (r.reporter ? r.reporter.phone : '—')) + '</span>' +
     '</div>' +
-    (r.details ? '<div class="card-bio">' + r.details + '</div>' : '') +
+    (r.details ? '<div class="card-bio">' + escapeHtml(r.details) + '</div>' : '') +
     '<div class="docs-label">المستندات المرفوعة</div>' +
     (docs.length
       ? '<div class="docs-row">' + docs.map(function (d) {
-          return '<a class="doc-link" target="_blank" rel="noopener" href="' + d[1] + '">' + d[0] + '</a>';
+          return '<a class="doc-link" target="_blank" rel="noopener" href="' + escapeHtml(d[1]) + '">' + d[0] + '</a>';
         }).join('') + '</div>'
       : '<div class="no-docs">⚠ مفيش مستندات مرفوعة</div>') +
     '<div class="actions"></div>';
@@ -220,21 +276,21 @@ function equipmentCardEl(item) {
 
   card.innerHTML =
     '<div class="card-header">' +
-    '<div class="card-name">' + item.title + '</div>' +
+    '<div class="card-name">' + escapeHtml(item.title) + '</div>' +
     '<div class="card-date">' + date + '</div>' +
     '</div>' +
     '<div class="card-meta">' +
-    '<span>' + (DEVICE_CATEGORY_LABELS[item.category] || item.category) + '</span>' +
+    '<span>' + escapeHtml(DEVICE_CATEGORY_LABELS[item.category] || item.category) + '</span>' +
     '<span>' + (item.listingType === 'rent' ? 'للإيجار' : 'للبيع') + '</span>' +
-    (item.serialNumber ? '<span>🔢 ' + item.serialNumber + '</span>' : '') +
-    '<span>👤 ' + (item.owner ? item.owner.fullName : '—') + '</span>' +
-    '<span>📱 ' + (item.owner ? item.owner.phone : '—') + '</span>' +
+    (item.serialNumber ? '<span>🔢 ' + escapeHtml(item.serialNumber) + '</span>' : '') +
+    '<span>👤 ' + escapeHtml(item.owner ? item.owner.fullName : '—') + '</span>' +
+    '<span>📱 ' + escapeHtml(item.owner ? item.owner.phone : '—') + '</span>' +
     '</div>' +
-    (item.description ? '<div class="card-bio">' + item.description + '</div>' : '') +
+    (item.description ? '<div class="card-bio">' + escapeHtml(item.description) + '</div>' : '') +
     '<div class="docs-label">المستندات والصور</div>' +
     (docs.length
       ? '<div class="docs-row">' + docs.map(function (d) {
-          return '<a class="doc-link" target="_blank" rel="noopener" href="' + d[1] + '">' + d[0] + '</a>';
+          return '<a class="doc-link" target="_blank" rel="noopener" href="' + escapeHtml(d[1]) + '">' + d[0] + '</a>';
         }).join('') + '</div>'
       : '<div class="no-docs">⚠ مفيش صور أو مستندات مرفوعة</div>') +
     '<div class="actions"></div>';
@@ -298,18 +354,18 @@ function ticketCardEl(t) {
 
   card.innerHTML =
     '<div class="card-header">' +
-    '<div class="card-name">' + (t.type || 'استفسار عام') + '</div>' +
+    '<div class="card-name">' + escapeHtml(t.type || 'استفسار عام') + '</div>' +
     '<div class="card-date">' + date + '</div>' +
     '</div>' +
     '<div class="card-meta">' +
-    '<span>👤 ' + (t.user ? t.user.fullName : '—') + '</span>' +
-    '<span>📱 ' + (t.user ? t.user.phone : '—') + '</span>' +
-    '<span>✉️ ' + (t.user && t.user.email ? t.user.email : '—') + '</span>' +
+    '<span>👤 ' + escapeHtml(t.user ? t.user.fullName : '—') + '</span>' +
+    '<span>📱 ' + escapeHtml(t.user ? t.user.phone : '—') + '</span>' +
+    '<span>✉️ ' + escapeHtml(t.user && t.user.email ? t.user.email : '—') + '</span>' +
     '</div>' +
-    '<div class="card-bio">' + t.details + '</div>' +
+    '<div class="card-bio">' + escapeHtml(t.details) + '</div>' +
     '<div class="docs-label">المرفق</div>' +
     (t.attachmentUrl
-      ? '<div class="docs-row"><a class="doc-link" target="_blank" rel="noopener" href="' + t.attachmentUrl + '">📎 عرض المرفق</a></div>'
+      ? '<div class="docs-row"><a class="doc-link" target="_blank" rel="noopener" href="' + escapeHtml(t.attachmentUrl) + '">📎 عرض المرفق</a></div>'
       : '<div class="no-docs">⚠ مفيش مرفق</div>') +
     '<div class="actions"></div>';
 
@@ -359,11 +415,11 @@ function userResultRowEl(u) {
   row.className = 'card';
   row.style.cursor = 'pointer';
   row.innerHTML =
-    '<div class="card-header"><div class="card-name">' + u.fullName + '</div></div>' +
+    '<div class="card-header"><div class="card-name">' + escapeHtml(u.fullName) + '</div></div>' +
     '<div class="card-meta">' +
-    '<span>📱 ' + u.phone + '</span>' +
-    '<span>✉️ ' + (u.email || '—') + '</span>' +
-    '<span>' + (ACCOUNT_TYPE_LABELS[u.accountType] || u.accountType) + '</span>' +
+    '<span>📱 ' + escapeHtml(u.phone) + '</span>' +
+    '<span>✉️ ' + escapeHtml(u.email || '—') + '</span>' +
+    '<span>' + escapeHtml(ACCOUNT_TYPE_LABELS[u.accountType] || u.accountType) + '</span>' +
     '</div>';
   row.addEventListener('click', function () {
     selectedUserForMessage = u;
@@ -423,9 +479,9 @@ function adminConversationRowEl(conv, supportUserId) {
   row.className = 'card';
   row.style.cursor = 'pointer';
   row.innerHTML =
-    '<div class="card-header"><div class="card-name">' + other.fullName + '</div></div>' +
-    '<div class="card-meta"><span>📱 ' + other.phone + '</span></div>' +
-    (lastMsg ? '<div class="card-bio">' + lastMsg.body + '</div>' : '');
+    '<div class="card-header"><div class="card-name">' + escapeHtml(other.fullName) + '</div></div>' +
+    '<div class="card-meta"><span>📱 ' + escapeHtml(other.phone) + '</span></div>' +
+    (lastMsg ? '<div class="card-bio">' + escapeHtml(lastMsg.body) + '</div>' : '');
   row.addEventListener('click', function () { openAdminConversationThread(conv.id, other); });
   return row;
 }
@@ -459,7 +515,7 @@ async function openAdminConversationThread(conversationId, otherUser) {
     const data = await apiCall('/messages/conversations/' + conversationId);
     messagesWrap.innerHTML = data.messages.map(function (m) {
       const isSupport = m.senderId !== otherUser.id;
-      return '<div class="card" style="' + (isSupport ? 'background:#EFF6FF;' : '') + '"><b>' + (isSupport ? 'الدعم الفني' : otherUser.fullName) + ':</b> ' + m.body + '</div>';
+      return '<div class="card" style="' + (isSupport ? 'background:#EFF6FF;' : '') + '"><b>' + (isSupport ? 'الدعم الفني' : escapeHtml(otherUser.fullName)) + ':</b> ' + escapeHtml(m.body) + '</div>';
     }).join('');
   } catch (err) {
     errorBox.textContent = err.message || 'تعذر تحميل المحادثة';
@@ -496,11 +552,17 @@ function loadAll() {
 }
 
 document.getElementById('loadBtn').addEventListener('click', loadAll);
+document.getElementById('adminLoginBtn').addEventListener('click', adminLogin);
+document.getElementById('adminLogoutBtn').addEventListener('click', adminLogout);
+document.getElementById('adminLoginPassword').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') adminLogin();
+});
 
 window.addEventListener('DOMContentLoaded', function () {
-  const saved = localStorage.getItem('survo_admin_secret');
-  if (saved) {
-    document.getElementById('secretInput').value = saved;
+  if (getAdminToken()) {
+    showLoggedInUI();
     loadAll();
+  } else {
+    showLoggedOutUI();
   }
 });

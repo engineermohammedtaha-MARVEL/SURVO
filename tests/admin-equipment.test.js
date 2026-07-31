@@ -1,13 +1,13 @@
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { request, app, prisma, createApprovedUser } = require('./helpers');
+const { request, app, prisma, createApprovedUser, createAdminUser } = require('./helpers');
 
 const createdUserIds = [];
-const adminSecret = process.env.ADMIN_SECRET;
 
 test('non-accessory equipment starts pending and is hidden until admin approves it', async () => {
   const owner = await createApprovedUser();
-  createdUserIds.push(owner.id);
+  const admin = await createAdminUser();
+  createdUserIds.push(owner.id, admin.id);
 
   const createRes = await request(app)
     .post('/api/equipment')
@@ -21,14 +21,18 @@ test('non-accessory equipment starts pending and is hidden until admin approves 
   const foundBeforeApproval = publicListRes.body.items.some((i) => i.id === equipmentId);
   assert.equal(foundBeforeApproval, false, 'pending equipment should not appear in the public feed');
 
-  const wrongSecretRes = await request(app)
+  const noAuthRes = await request(app)
+    .post('/api/admin/equipment/' + equipmentId + '/approve');
+  assert.equal(noAuthRes.status, 401);
+
+  const nonAdminRes = await request(app)
     .post('/api/admin/equipment/' + equipmentId + '/approve')
-    .set('x-admin-secret', 'not-the-real-secret');
-  assert.equal(wrongSecretRes.status, 401);
+    .set('Authorization', 'Bearer ' + owner.token);
+  assert.equal(nonAdminRes.status, 403);
 
   const approveRes = await request(app)
     .post('/api/admin/equipment/' + equipmentId + '/approve')
-    .set('x-admin-secret', adminSecret);
+    .set('Authorization', 'Bearer ' + admin.token);
   assert.equal(approveRes.status, 200);
 
   const publicListAfterRes = await request(app).get('/api/equipment');
@@ -39,7 +43,8 @@ test('non-accessory equipment starts pending and is hidden until admin approves 
 test('editing an approved equipment listing sends it back to pending review', async () => {
   const owner = await createApprovedUser();
   const stranger = await createApprovedUser();
-  createdUserIds.push(owner.id, stranger.id);
+  const admin = await createAdminUser();
+  createdUserIds.push(owner.id, stranger.id, admin.id);
 
   const createRes = await request(app)
     .post('/api/equipment')
@@ -47,7 +52,7 @@ test('editing an approved equipment listing sends it back to pending review', as
     .send({ title: 'Edit Test GPS', category: 'gps', listingType: 'rent', pricePerDay: 150 });
   const equipmentId = createRes.body.item.id;
 
-  await request(app).post('/api/admin/equipment/' + equipmentId + '/approve').set('x-admin-secret', adminSecret);
+  await request(app).post('/api/admin/equipment/' + equipmentId + '/approve').set('Authorization', 'Bearer ' + admin.token);
 
   const visibleBeforeEdit = await request(app).get('/api/equipment');
   assert.equal(visibleBeforeEdit.body.items.some((i) => i.id === equipmentId), true);
@@ -69,7 +74,7 @@ test('editing an approved equipment listing sends it back to pending review', as
   const hiddenAfterEdit = await request(app).get('/api/equipment');
   assert.equal(hiddenAfterEdit.body.items.some((i) => i.id === equipmentId), false, 'edited listing should be hidden again until re-approved');
 
-  const pendingListRes = await request(app).get('/api/admin/equipment/pending').set('x-admin-secret', adminSecret);
+  const pendingListRes = await request(app).get('/api/admin/equipment/pending').set('Authorization', 'Bearer ' + admin.token);
   assert.equal(pendingListRes.body.items.some((i) => i.id === equipmentId), true, 'edited listing should reappear in the admin review queue');
 });
 

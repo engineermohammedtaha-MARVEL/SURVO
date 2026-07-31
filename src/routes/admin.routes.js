@@ -9,7 +9,7 @@ const {
   searchUsers, sendAdminMessage, listAdminConversations, getAdminConversationMessages,
 } = require('../controllers/admin.controller');
 
-// دفاع إضافي ضد محاولات تخمين ADMIN_SECRET
+// دفاع إضافي ضد محاولات القوة الغاشمة على مسارات الأدمن
 const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
