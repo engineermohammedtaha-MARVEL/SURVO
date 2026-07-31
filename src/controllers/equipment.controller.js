@@ -164,13 +164,15 @@ async function update(req, res) {
   });
 }
 
-// بتزود عداد المشاهدات — بس لو الشخص اللي بيشوف مش صاحب الإعلان نفسه، عشان
-// المالك متبقاش مشاهداته لإعلانه بتزود العداد بتاعه
+// بتزود عداد المشاهدات — إلا لو الشخص اللي بيشوف هو صاحب الإعلان نفسه أو حساب
+// أدمن (مشاهدة الأدمن وقت المراجعة مش اهتمام حقيقي من عميل، فمينفعش تتحسب)
 async function recordView(req, res) {
   const existing = await prisma.equipment.findUnique({ where: { id: req.params.id }, select: { id: true, ownerId: true } });
   if (!existing) throw new ApiError(404, 'الجهاز غير موجود');
 
-  if (!req.user || req.user.id !== existing.ownerId) {
+  const isOwner = req.user && req.user.id === existing.ownerId;
+  const isAdmin = req.user && req.user.isAdmin;
+  if (!isOwner && !isAdmin) {
     await prisma.equipment.update({ where: { id: req.params.id }, data: { viewsCount: { increment: 1 } } });
   }
   res.json({ success: true });
