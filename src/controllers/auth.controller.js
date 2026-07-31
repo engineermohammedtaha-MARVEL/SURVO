@@ -5,6 +5,32 @@ const ApiError = require('../utils/apiError');
 const { signToken } = require('../utils/jwt');
 const { sendResetPasswordEmail } = require('../utils/mailer');
 const { computeResponseRate } = require('../utils/metrics');
+const { parseCloudinaryUrl, makeAuthenticatedAndMove, renameAsset } = require('../utils/cloudinaryUpload');
+
+const DOC_FIELDS = ['nationalIdUrl', 'personalPhotoUrl', 'qualificationUrl', 'unionCardUrl', 'commercialRecordUrl'];
+
+// المستندات بترفع الأول في مجلد مؤقت عام (وقت التسجيل، قبل ما يكون للمستخدم id)
+// وبعد ما الحساب يتعمل بنقلها هنا لمجلد خاص بالـ id بتاعه، ونتأكد إنها authenticated
+// (محمية بتوقيع) — لو أي حاجة فشلت في النقل بنسيبها بمكانها الأصلي بدل ما نوقف التسجيل
+async function organizeRegistrationDocs(userId, docs) {
+  const updates = {};
+  for (const field of DOC_FIELDS) {
+    const url = docs[field];
+    if (!url) continue;
+    try {
+      const parsed = parseCloudinaryUrl(url);
+      if (!parsed) continue;
+      const newPublicId = 'survo/users/' + userId + '/registration/' + field;
+      const moved = parsed.type === 'authenticated'
+        ? await renameAsset(parsed, newPublicId)
+        : await makeAuthenticatedAndMove(parsed, newPublicId);
+      updates[field] = moved.secureUrl;
+    } catch (err) {
+      // نسيب القيمة الأصلية لو النقل فشل — أهم حاجة إن التسجيل نفسه ينجح
+    }
+  }
+  return updates;
+}
 
 const ACCOUNT_TYPES = [
   'engineer',
@@ -64,11 +90,18 @@ async function register(req, res) {
     },
   });
 
+  const docUpdates = await organizeRegistrationDocs(user.id, {
+    nationalIdUrl, personalPhotoUrl, qualificationUrl, unionCardUrl, commercialRecordUrl,
+  });
+  const finalUser = Object.keys(docUpdates).length
+    ? await prisma.user.update({ where: { id: user.id }, data: docUpdates })
+    : user;
+
   res.status(201).json({
     success: true,
     pendingApproval: true,
     message: 'تم إنشاء حسابك، وهيتم تفعيله بعد موافقة الإدارة',
-    user: publicUser(user),
+    user: publicUser(finalUser),
   });
 }
 

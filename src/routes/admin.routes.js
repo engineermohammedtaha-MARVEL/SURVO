@@ -7,6 +7,7 @@ const {
   listPendingEquipment, approveEquipment, rejectEquipment,
   listOpenSupportTickets, resolveSupportTicket,
   searchUsers, sendAdminMessage, listAdminConversations, getAdminConversationMessages,
+  getSignedDocUrl,
 } = require('../controllers/admin.controller');
 
 // دفاع إضافي ضد محاولات القوة الغاشمة على مسارات الأدمن
@@ -34,5 +35,6 @@ router.get('/users/search', searchUsers);
 router.post('/messages', sendAdminMessage);
 router.get('/messages/conversations', listAdminConversations);
 router.get('/messages/conversations/:id', getAdminConversationMessages);
+router.get('/signed-url', getSignedDocUrl);
 
 module.exports = router;

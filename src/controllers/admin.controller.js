@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const ApiError = require('../utils/apiError');
+const { parseCloudinaryUrl, getSignedUrl } = require('../utils/cloudinaryUpload');
 
 async function listPendingUsers(req, res) {
   const users = await prisma.user.findMany({
@@ -290,10 +291,31 @@ async function getAdminConversationMessages(req, res) {
   res.json({ success: true, messages });
 }
 
+// مستندات التوثيق الحساسة (بطاقة، سند ملكية، إلخ) بتترفع authenticated —
+// الرابط المخزّن في الداتابيز مش شغال لوحده، لازم توقيع جديد في كل مرة الأدمن
+// يحب يشوف المستند، وده بيخلي الرابط صالح لمدة قصيرة بس (5 دقايق) مش للأبد
+async function getSignedDocUrl(req, res) {
+  const { url } = req.query;
+  if (!url) throw new ApiError(400, 'الرابط مطلوب');
+
+  const parsed = parseCloudinaryUrl(url);
+  if (!parsed || parsed.cloudName !== process.env.CLOUDINARY_CLOUD_NAME) {
+    throw new ApiError(400, 'رابط غير صالح');
+  }
+  if (parsed.type !== 'authenticated') {
+    // مش مستند حساس أصلًا (زي صور المعدات) — الرابط الأصلي شغال عادي
+    return res.json({ success: true, url });
+  }
+
+  const signedUrl = getSignedUrl(parsed, 300);
+  res.json({ success: true, url: signedUrl });
+}
+
 module.exports = {
   listPendingUsers, approveUser, rejectUser,
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
   listPendingEquipment, approveEquipment, rejectEquipment,
   listOpenSupportTickets, resolveSupportTicket,
   searchUsers, sendAdminMessage, listAdminConversations, getAdminConversationMessages,
+  getSignedDocUrl,
 };

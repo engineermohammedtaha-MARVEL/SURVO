@@ -89,6 +89,28 @@ function adminLogout() {
   showLoggedOutUI();
 }
 
+// مستندات التوثيق الحساسة بترفع محمية (authenticated) — الرابط المخزّن لوحده
+// مش هيشتغل، لازم نطلب توقيع جديد من السيرفر كل مرة قبل ما نفتحه
+async function openSignedDoc(rawUrl) {
+  try {
+    const data = await apiCall('/signed-url?url=' + encodeURIComponent(rawUrl));
+    window.open(data.url, '_blank', 'noopener');
+  } catch (err) {
+    alert(err.message || 'تعذر فتح المستند');
+  }
+}
+
+// بيدور على كل رابط مستند جوه الكونتينر ده ويخليه يفتح عن طريق openSignedDoc
+// بدل ما يكون href مباشر (اللي مش هيشتغل أصلًا لو المستند authenticated)
+function wireDocLinks(container) {
+  container.querySelectorAll('.doc-link[data-doc-url]').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      openSignedDoc(el.getAttribute('data-doc-url'));
+    });
+  });
+}
+
 function cardEl(u) {
   const date = new Date(u.createdAt).toLocaleString('ar-EG');
   const card = document.createElement('div');
@@ -115,10 +137,11 @@ function cardEl(u) {
     '<div class="docs-label">المستندات المرفوعة</div>' +
     (docs.length
       ? '<div class="docs-row">' + docs.map(function (key) {
-          return '<a class="doc-link" target="_blank" rel="noopener" href="' + escapeHtml(u[key]) + '">' + DOC_LABELS[key] + '</a>';
+          return '<a class="doc-link" href="#" data-doc-url="' + escapeHtml(u[key]) + '">' + DOC_LABELS[key] + '</a>';
         }).join('') + '</div>'
       : '<div class="no-docs">⚠ المستخدم لسه ما رفعش أي مستندات توثيق</div>') +
     '<div class="actions"></div>';
+  wireDocLinks(card);
 
   const actionsCell = card.querySelector('.actions');
   const approveBtn = document.createElement('button');
@@ -205,10 +228,11 @@ function reportCardEl(r) {
     '<div class="docs-label">المستندات المرفوعة</div>' +
     (docs.length
       ? '<div class="docs-row">' + docs.map(function (d) {
-          return '<a class="doc-link" target="_blank" rel="noopener" href="' + escapeHtml(d[1]) + '">' + d[0] + '</a>';
+          return '<a class="doc-link" href="#" data-doc-url="' + escapeHtml(d[1]) + '">' + d[0] + '</a>';
         }).join('') + '</div>'
       : '<div class="no-docs">⚠ مفيش مستندات مرفوعة</div>') +
     '<div class="actions"></div>';
+  wireDocLinks(card);
 
   const actionsCell = card.querySelector('.actions');
   const approveBtn = document.createElement('button');
@@ -290,10 +314,11 @@ function equipmentCardEl(item) {
     '<div class="docs-label">المستندات والصور</div>' +
     (docs.length
       ? '<div class="docs-row">' + docs.map(function (d) {
-          return '<a class="doc-link" target="_blank" rel="noopener" href="' + escapeHtml(d[1]) + '">' + d[0] + '</a>';
+          return '<a class="doc-link" href="#" data-doc-url="' + escapeHtml(d[1]) + '">' + d[0] + '</a>';
         }).join('') + '</div>'
       : '<div class="no-docs">⚠ مفيش صور أو مستندات مرفوعة</div>') +
     '<div class="actions"></div>';
+  wireDocLinks(card);
 
   const actionsCell = card.querySelector('.actions');
   const approveBtn = document.createElement('button');
