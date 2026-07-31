@@ -57,6 +57,31 @@ test('admin signed-url endpoint requires admin auth and signs authenticated docs
   assert.notEqual(signedRes.body.url, rawUrl, 'signed url must differ from the stored reference url (fresh signature)');
 });
 
+test('support ticket attachments upload as authenticated and admin can view via signed url', async () => {
+  const owner = await createApprovedUser();
+  const admin = await createAdminUser();
+  createdUserIds.push(owner.id, admin.id);
+
+  const uploadRes = await request(app)
+    .post('/api/uploads')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .field('purpose', 'support')
+    .attach('file', Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'), 'ticket.png');
+  const attachmentUrl = uploadRes.body.url;
+  assert.match(attachmentUrl, /\/authenticated\//, 'support ticket attachment must upload as authenticated');
+
+  await request(app)
+    .post('/api/support/tickets')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ type: 'مشكلة تقنية في التطبيق', details: 'test ticket', attachmentUrl });
+
+  const signedRes = await request(app)
+    .get('/api/admin/signed-url?url=' + encodeURIComponent(attachmentUrl))
+    .set('Authorization', 'Bearer ' + admin.token);
+  assert.equal(signedRes.status, 200);
+  assert.notEqual(signedRes.body.url, attachmentUrl);
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await prisma.equipment.deleteMany({ where: { ownerId: id } });

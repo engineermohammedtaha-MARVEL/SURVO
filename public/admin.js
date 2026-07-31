@@ -396,9 +396,10 @@ function ticketCardEl(t) {
     '<div class="card-bio">' + escapeHtml(t.details) + '</div>' +
     '<div class="docs-label">المرفق</div>' +
     (t.attachmentUrl
-      ? '<div class="docs-row"><a class="doc-link" target="_blank" rel="noopener" href="' + escapeHtml(t.attachmentUrl) + '">📎 عرض المرفق</a></div>'
+      ? '<div class="docs-row"><a class="doc-link" href="#" data-doc-url="' + escapeHtml(t.attachmentUrl) + '">📎 عرض المرفق</a></div>'
       : '<div class="no-docs">⚠ مفيش مرفق</div>') +
     '<div class="actions"></div>';
+  wireDocLinks(card);
 
   const actionsCell = card.querySelector('.actions');
   const resolveBtn = document.createElement('button');
