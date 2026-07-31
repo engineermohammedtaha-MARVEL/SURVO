@@ -1,0 +1,40 @@
+const { test, after } = require('node:test');
+const assert = require('node:assert/strict');
+const { request, app, prisma, createApprovedUser } = require('./helpers');
+
+const createdUserIds = [];
+
+test('viewsCount increments for other viewers but not for the owner, and is hidden from the public response', async () => {
+  const owner = await createApprovedUser();
+  const stranger = await createApprovedUser();
+  createdUserIds.push(owner.id, stranger.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'View Count Test', category: 'accessories', listingType: 'rent', pricePerDay: 20 });
+  const equipmentId = createRes.body.item.id;
+
+  // مالك الإعلان بيشوفه (مش المفروض يزود العداد)
+  await request(app).post('/api/equipment/' + equipmentId + '/view').set('Authorization', 'Bearer ' + owner.token);
+  // زائر من غير تسجيل دخول
+  await request(app).post('/api/equipment/' + equipmentId + '/view');
+  // مستخدم تاني مسجل دخول
+  await request(app).post('/api/equipment/' + equipmentId + '/view').set('Authorization', 'Bearer ' + stranger.token);
+
+  const getOneRes = await request(app).get('/api/equipment/' + equipmentId);
+  assert.equal(getOneRes.body.item.viewsCount, undefined, 'viewsCount should not leak in the public detail response');
+
+  const mineRes = await request(app).get('/api/equipment/mine').set('Authorization', 'Bearer ' + owner.token);
+  const mine = mineRes.body.items.find((i) => i.id === equipmentId);
+  assert.equal(mine.viewsCount, 2, 'only the two non-owner views should have counted');
+});
+
+after(async () => {
+  for (const id of createdUserIds) {
+    await prisma.equipment.deleteMany({ where: { ownerId: id } });
+    await prisma.notification.deleteMany({ where: { userId: id } });
+    await prisma.user.deleteMany({ where: { id } });
+  }
+  await prisma.$disconnect();
+});

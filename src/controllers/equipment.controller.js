@@ -164,6 +164,18 @@ async function update(req, res) {
   });
 }
 
+// بتزود عداد المشاهدات — بس لو الشخص اللي بيشوف مش صاحب الإعلان نفسه، عشان
+// المالك متبقاش مشاهداته لإعلانه بتزود العداد بتاعه
+async function recordView(req, res) {
+  const existing = await prisma.equipment.findUnique({ where: { id: req.params.id }, select: { id: true, ownerId: true } });
+  if (!existing) throw new ApiError(404, 'الجهاز غير موجود');
+
+  if (!req.user || req.user.id !== existing.ownerId) {
+    await prisma.equipment.update({ where: { id: req.params.id }, data: { viewsCount: { increment: 1 } } });
+  }
+  res.json({ success: true });
+}
+
 async function remove(req, res) {
   const existing = await prisma.equipment.findUnique({ where: { id: req.params.id } });
   if (!existing) throw new ApiError(404, 'الجهاز غير موجود');
@@ -181,4 +193,4 @@ async function myEquipment(req, res) {
   res.json({ success: true, items });
 }
 
-module.exports = { list, getOne, create, update, remove, myEquipment };
+module.exports = { list, getOne, create, update, remove, myEquipment, recordView };
