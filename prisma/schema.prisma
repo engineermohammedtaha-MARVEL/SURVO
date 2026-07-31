@@ -240,6 +240,7 @@ model Message {
   senderId        String
   sender          User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   body            String
+  attachmentUrl   String?
   readAt          DateTime?
   createdAt       DateTime     @default(now())
 

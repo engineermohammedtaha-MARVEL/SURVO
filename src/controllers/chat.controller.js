@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const ApiError = require('../utils/apiError');
+const { parseCloudinaryUrl, getSignedUrl } = require('../utils/cloudinaryUpload');
 
 async function listConversations(req, res) {
   const conversations = await prisma.conversation.findMany({
@@ -61,8 +62,9 @@ async function getMessages(req, res) {
 }
 
 async function sendMessage(req, res) {
-  const { body } = req.body;
-  if (!body || !body.trim()) throw new ApiError(400, 'اكتب رسالة');
+  const { body, attachmentUrl } = req.body;
+  const text = (body || '').trim();
+  if (!text && !attachmentUrl) throw new ApiError(400, 'اكتب رسالة أو أرفق صورة');
 
   const conversation = await prisma.conversation.findUnique({ where: { id: req.params.id } });
   if (!conversation) throw new ApiError(404, 'المحادثة غير موجودة');
@@ -71,15 +73,46 @@ async function sendMessage(req, res) {
   }
 
   const message = await prisma.message.create({
-    data: { conversationId: req.params.id, senderId: req.user.id, body: body.trim() },
+    data: { conversationId: req.params.id, senderId: req.user.id, body: text, attachmentUrl: attachmentUrl || undefined },
   });
 
   const recipientId = conversation.userAId === req.user.id ? conversation.userBId : conversation.userAId;
   await prisma.notification.create({
-    data: { userId: recipientId, title: 'رسالة جديدة', body: body.trim().slice(0, 80), contactUserId: req.user.id },
+    data: {
+      userId: recipientId,
+      title: 'رسالة جديدة',
+      body: text ? text.slice(0, 80) : '📷 صورة',
+      contactUserId: req.user.id,
+    },
   });
 
   res.status(201).json({ success: true, message });
 }
 
-module.exports = { listConversations, findExistingConversation, startOrGetConversation, getMessages, sendMessage };
+// مرفقات الشات بترفع authenticated (خاصة) — لازم توقيع جديد كل مرة قبل ما نعرضها،
+// وبنتأكد إن الشخص اللي طالب التوقيع فعلاً طرف في نفس المحادثة اللي فيها الرسالة دي
+async function getSignedAttachmentUrl(req, res) {
+  const { messageId } = req.query;
+  if (!messageId) throw new ApiError(400, 'messageId مطلوب');
+
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    include: { conversation: true },
+  });
+  if (!message || !message.attachmentUrl) throw new ApiError(404, 'مفيش مرفق');
+  if (message.conversation.userAId !== req.user.id && message.conversation.userBId !== req.user.id) {
+    throw new ApiError(403, 'مش مسموح لك تشوف المرفق ده');
+  }
+
+  const parsed = parseCloudinaryUrl(message.attachmentUrl);
+  if (!parsed || parsed.type !== 'authenticated') {
+    return res.json({ success: true, url: message.attachmentUrl });
+  }
+
+  // صلاحية طويلة نسبيًا (يوم كامل) عشان المحادثة تفضل شغالة وانت بترجع تفتحها
+  // من غير ما نطلب توقيع جديد كل مرة، بس برضه مش رابط دائم زي ما كان قبل كده
+  const signedUrl = getSignedUrl(parsed, 24 * 60 * 60);
+  res.json({ success: true, url: signedUrl });
+}
+
+module.exports = { listConversations, findExistingConversation, startOrGetConversation, getMessages, sendMessage, getSignedAttachmentUrl };

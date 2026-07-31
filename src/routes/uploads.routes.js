@@ -7,7 +7,7 @@ const { upload, uploadBufferToCloudinary } = require('../utils/cloudinaryUpload'
 // purpose بيحدد فين هيتخزن الملف وهل هو حساس (سند ملكية/رقم تسلسلي) لازم يبقى
 // محمي (authenticated) ومحدش يشوفه غير الأدمن وقت المراجعة، ولا عادي (صور المعدات/الأفاتار)
 // اللي المفروض تبقى عامة عشان تظهر في السوق
-const SENSITIVE_PURPOSES = ['equipment-doc', 'report-doc'];
+const SENSITIVE_PURPOSES = ['equipment-doc', 'report-doc', 'chat'];
 const ALLOWED_PURPOSES = ['equipment', 'equipment-doc', 'report-doc', 'avatar', 'chat', 'support', 'general'];
 
 function safePurpose(value) {
