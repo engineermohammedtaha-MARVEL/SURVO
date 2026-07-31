@@ -69,9 +69,10 @@ function getSignedUrl(parsed, expiresInSeconds) {
 }
 
 // بيحوّل ملف مرفوع بنوع "upload" (عام) لنوع "authenticated" (محمي)، وبينقله كمان
-// لمجلد جديد لو حبينا — من غير ما نحتاج نرفع بايتات الملف تاني
+// لمجلد جديد لو حبينا — من غير ما نحتاج نرفع بايتات الملف تاني. لو الملف
+// authenticated خلاص، بيتنقل بس من غير ما يتغير نوعه (نفس شكل الرجوع دايمًا)
 async function makeAuthenticatedAndMove(parsed, newPublicId) {
-  if (parsed.type === 'authenticated') return parsed;
+  if (parsed.type === 'authenticated') return renameAsset(parsed, newPublicId);
   const renamed = await cloudinary.uploader.rename(parsed.publicId, newPublicId || parsed.publicId, {
     to_type: 'authenticated',
     resource_type: parsed.resourceType,

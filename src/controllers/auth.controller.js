@@ -5,7 +5,7 @@ const ApiError = require('../utils/apiError');
 const { signToken } = require('../utils/jwt');
 const { sendResetPasswordEmail } = require('../utils/mailer');
 const { computeResponseRate } = require('../utils/metrics');
-const { parseCloudinaryUrl, makeAuthenticatedAndMove, renameAsset } = require('../utils/cloudinaryUpload');
+const { parseCloudinaryUrl, makeAuthenticatedAndMove } = require('../utils/cloudinaryUpload');
 
 const DOC_FIELDS = ['nationalIdUrl', 'personalPhotoUrl', 'qualificationUrl', 'unionCardUrl', 'commercialRecordUrl'];
 
@@ -21,9 +21,7 @@ async function organizeRegistrationDocs(userId, docs) {
       const parsed = parseCloudinaryUrl(url);
       if (!parsed) continue;
       const newPublicId = 'survo/users/' + userId + '/registration/' + field;
-      const moved = parsed.type === 'authenticated'
-        ? await renameAsset(parsed, newPublicId)
-        : await makeAuthenticatedAndMove(parsed, newPublicId);
+      const moved = await makeAuthenticatedAndMove(parsed, newPublicId);
       updates[field] = moved.secureUrl;
     } catch (err) {
       // نسيب القيمة الأصلية لو النقل فشل — أهم حاجة إن التسجيل نفسه ينجح
