@@ -1,6 +1,28 @@
 const prisma = require('../config/db');
 const ApiError = require('../utils/apiError');
 
+// ownershipDocUrl/serialNumberPhotoUrl مستندات إثبات ملكية شخصية — مش المفروض
+// تظهر في أي رد عام (list/getOne)، لازم يبانوا بس للمالك نفسه أو للأدمن وقت المراجعة
+const PUBLIC_EQUIPMENT_SELECT = {
+  id: true,
+  ownerId: true,
+  title: true,
+  category: true,
+  listingType: true,
+  description: true,
+  pricePerDay: true,
+  salePrice: true,
+  governorate: true,
+  available: true,
+  images: true,
+  serialNumber: true,
+  moderationStatus: true,
+  requestsCount: true,
+  rating: true,
+  createdAt: true,
+  updatedAt: true,
+};
+
 async function list(req, res) {
   const { category, governorate, listingType, q, page = 1, pageSize = 20 } = req.query;
 
@@ -27,7 +49,10 @@ async function list(req, res) {
       orderBy: { createdAt: 'desc' },
       take,
       skip,
-      include: { owner: { select: { id: true, fullName: true, phone: true, rating: true, verification: true } } },
+      select: {
+        ...PUBLIC_EQUIPMENT_SELECT,
+        owner: { select: { id: true, fullName: true, phone: true, rating: true, verification: true } },
+      },
     }),
     prisma.equipment.count({ where }),
   ]);
@@ -38,7 +63,10 @@ async function list(req, res) {
 async function getOne(req, res) {
   const item = await prisma.equipment.findUnique({
     where: { id: req.params.id },
-    include: { owner: { select: { id: true, fullName: true, phone: true, rating: true, verification: true, avatarUrl: true } } },
+    select: {
+      ...PUBLIC_EQUIPMENT_SELECT,
+      owner: { select: { id: true, fullName: true, phone: true, rating: true, verification: true, avatarUrl: true } },
+    },
   });
   if (!item || item.moderationStatus !== 'approved') throw new ApiError(404, 'الجهاز غير موجود');
   res.json({ success: true, item });

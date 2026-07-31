@@ -3,16 +3,30 @@ const ApiError = require('../utils/apiError');
 const { publicUser } = require('./auth.controller');
 const { computeResponseRate } = require('../utils/metrics');
 
+// بروفايل عام بيتفتح من أي حد حتى من غير تسجيل دخول — لازم يرجّع بس الحقول
+// المفروض تكون عامة (allowlist)، مش كل حقول الحساب زي مستندات التوثيق،
+// الإيميل، حالة الأدمن، أو أي توكنات داخلية
 async function getPublicProfile(req, res) {
   const user = await prisma.user.findUnique({
     where: { id: req.params.id },
-    include: {
-      equipment: { where: { available: true }, take: 20 },
+    select: {
+      id: true,
+      fullName: true,
+      accountType: true,
+      bio: true,
+      specialties: true,
+      governorate: true,
+      verification: true,
+      avatarUrl: true,
+      phone: true,
+      rating: true,
+      ratingCount: true,
+      createdAt: true,
     },
   });
   if (!user) throw new ApiError(404, 'المستخدم غير موجود');
   const responseRate = await computeResponseRate(user.id);
-  res.json({ success: true, user: { ...publicUser(user), responseRate } });
+  res.json({ success: true, user: { ...user, responseRate } });
 }
 
 async function updateMe(req, res) {
