@@ -92,10 +92,16 @@ function adminLogout() {
 // مستندات التوثيق الحساسة بترفع محمية (authenticated) — الرابط المخزّن لوحده
 // مش هيشتغل، لازم نطلب توقيع جديد من السيرفر كل مرة قبل ما نفتحه
 async function openSignedDoc(rawUrl) {
+  // بنفتح تاب فاضي فورًا (جوه نفس الـ click) عشان المتصفح مايحجبهوش كـ popup —
+  // لو فتحناه بعد الـ await هيتحجب لأنه مبقاش "استجابة مباشرة" لضغطة المستخدم
+  const newTab = window.open('', '_blank');
+  if (newTab) newTab.opener = null;
   try {
     const data = await apiCall('/signed-url?url=' + encodeURIComponent(rawUrl));
-    window.open(data.url, '_blank', 'noopener');
+    if (newTab) newTab.location.href = data.url;
+    else window.open(data.url, '_blank', 'noopener');
   } catch (err) {
+    if (newTab) newTab.close();
     alert(err.message || 'تعذر فتح المستند');
   }
 }
