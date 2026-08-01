@@ -1,6 +1,7 @@
 const prisma = require('../config/db');
 const ApiError = require('../utils/apiError');
 const { parseCloudinaryUrl, getSignedUrl } = require('../utils/cloudinaryUpload');
+const { notifySavedSearchMatches } = require('../utils/savedSearchMatch');
 
 async function listPendingUsers(req, res) {
   const users = await prisma.user.findMany({
@@ -144,6 +145,8 @@ async function approveEquipment(req, res) {
       body: 'إعلانك "' + item.title + '" اتراجع واتنشر دلوقتي على المنصة.',
     },
   });
+
+  notifySavedSearchMatches(updated).catch(() => {});
 
   res.json({ success: true, item: { id: updated.id, moderationStatus: updated.moderationStatus } });
 }

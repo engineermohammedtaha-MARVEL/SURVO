@@ -92,6 +92,11 @@ enum ModerationStatus {
   rejected
 }
 
+enum HandoverType {
+  checkout // تسليم الجهاز للطرف التاني
+  checkin  // استلام الجهاز راجع
+}
+
 // ============ MODELS ============
 
 model User {
@@ -133,6 +138,9 @@ model User {
   supportTickets    SupportTicket[]
   notifications     Notification[]
   deviceReports     DeviceReport[]
+  savedSearches     SavedSearch[]
+  handoversAsOwner  HandoverRecord[] @relation("HandoverOwner")
+  handoversAsOther  HandoverRecord[] @relation("HandoverOtherParty")
 
   @@map("users")
 }
@@ -161,6 +169,7 @@ model Equipment {
   updatedAt       DateTime          @updatedAt
 
   requests        RentalRequest[]
+  handovers       HandoverRecord[]
 
   @@index([category])
   @@index([governorate])
@@ -301,8 +310,41 @@ model Notification {
   title         String
   body          String?
   contactUserId String?
+  targetType    String?  // 'equipment' | 'job' | 'request' — لفتح الإعلان المرتبط عند الضغط
+  targetId      String?
   readAt        DateTime?
   createdAt     DateTime @default(now())
 
   @@map("notifications")
+}
+
+model SavedSearch {
+  id            String             @id @default(uuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category      EquipmentCategory?
+  governorate   String?
+  listingType   ListingType?
+  keyword       String?
+  createdAt     DateTime           @default(now())
+
+  @@map("saved_searches")
+}
+
+model HandoverRecord {
+  id            String       @id @default(uuid())
+  equipmentId   String
+  equipment     Equipment    @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  ownerId       String
+  owner         User         @relation("HandoverOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  otherPartyId  String
+  otherParty    User         @relation("HandoverOtherParty", fields: [otherPartyId], references: [id], onDelete: Cascade)
+  createdById   String
+  type          HandoverType
+  photos        String[]     @default([])
+  notes         String?
+  createdAt     DateTime     @default(now())
+
+  @@index([equipmentId, otherPartyId])
+  @@map("handover_records")
 }

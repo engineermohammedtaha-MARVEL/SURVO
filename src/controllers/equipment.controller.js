@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const ApiError = require('../utils/apiError');
+const { notifySavedSearchMatches } = require('../utils/savedSearchMatch');
 
 // ownershipDocUrl/serialNumberPhotoUrl مستندات إثبات ملكية شخصية — مش المفروض
 // تظهر في أي رد عام (list/getOne)، لازم يبانوا بس للمالك نفسه أو للأدمن وقت المراجعة
@@ -110,6 +111,10 @@ async function create(req, res) {
       moderationStatus,
     },
   });
+
+  if (moderationStatus === 'approved') {
+    notifySavedSearchMatches(item).catch(() => {});
+  }
 
   res.status(201).json({
     success: true,
