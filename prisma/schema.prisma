@@ -342,6 +342,8 @@ model HandoverRecord {
   createdById   String
   type          HandoverType
   photos        String[]     @default([])
+  checklist     String[]     @default([]) // بنود قائمة الفحص السريع اللي اتأكد منها المستخدم وقت التوثيق
+  certificateUrl String?     // صورة محضر الاستلام والتسليم موقّع من الطرفين
   notes         String?
   createdAt     DateTime     @default(now())
 

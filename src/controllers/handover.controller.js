@@ -10,9 +10,20 @@ const HANDOVER_SELECT = {
   createdById: true,
   type: true,
   photos: true,
+  checklist: true,
+  certificateUrl: true,
   notes: true,
   createdAt: true,
 };
+
+// نفس بنود قائمة الفحص السريع اللي كانت متفق عليها في تصميم الشاشة الأصلي
+const CHECKLIST_KEYS = ['working', 'battery', 'tripod', 'certificate_signed'];
+
+function signIfAuthenticated(url) {
+  const parsed = parseCloudinaryUrl(url);
+  if (!parsed || parsed.type !== 'authenticated') return url;
+  return getSignedUrl(parsed, 3600);
+}
 
 // بيوثق حالة الجهاز وقت التسليم/الاستلام بين صاحب الإعلان والطرف التاني —
 // المالك لازم يحدد otherPartyId، أما الطرف التاني فبيتحدد تلقائيًا (مالك الجهاز)
@@ -32,9 +43,11 @@ async function createHandover(req, res) {
     otherPartyId = req.user.id;
   }
 
-  const { type, photos, notes } = req.body;
+  const { type, photos, notes, checklist, certificateUrl } = req.body;
   if (!['checkout', 'checkin'].includes(type)) throw new ApiError(400, 'نوع التوثيق غير صحيح');
   if (!Array.isArray(photos) || photos.length === 0) throw new ApiError(400, 'ضيف صورة واحدة على الأقل لتوثيق حالة الجهاز');
+
+  const safeChecklist = Array.isArray(checklist) ? checklist.filter((k) => CHECKLIST_KEYS.includes(k)) : [];
 
   const record = await prisma.handoverRecord.create({
     data: {
@@ -44,6 +57,8 @@ async function createHandover(req, res) {
       createdById: req.user.id,
       type,
       photos,
+      checklist: safeChecklist,
+      certificateUrl: certificateUrl || undefined,
       notes: notes || undefined,
     },
     select: HANDOVER_SELECT,
@@ -85,20 +100,17 @@ async function listHandovers(req, res) {
 async function getSignedHandoverPhotos(req, res) {
   const record = await prisma.handoverRecord.findUnique({
     where: { id: req.params.handoverId },
-    select: { id: true, ownerId: true, otherPartyId: true, photos: true },
+    select: { id: true, ownerId: true, otherPartyId: true, photos: true, certificateUrl: true },
   });
   if (!record) throw new ApiError(404, 'السجل غير موجود');
   if (req.user.id !== record.ownerId && req.user.id !== record.otherPartyId) {
     throw new ApiError(403, 'مش مسموح لك تشوف الصور دي');
   }
 
-  const urls = record.photos.map((url) => {
-    const parsed = parseCloudinaryUrl(url);
-    if (!parsed || parsed.type !== 'authenticated') return url;
-    return getSignedUrl(parsed, 3600);
-  });
+  const urls = record.photos.map(signIfAuthenticated);
+  const certificateUrl = record.certificateUrl ? signIfAuthenticated(record.certificateUrl) : null;
 
-  res.json({ success: true, urls });
+  res.json({ success: true, urls, certificateUrl });
 }
 
 module.exports = { createHandover, listHandovers, getSignedHandoverPhotos };

@@ -21,10 +21,18 @@ test('handover records: create/list scoped to owner+renter, signed-photos scoped
   const checkoutRes = await request(app)
     .post('/api/equipment/' + equipmentId + '/handovers')
     .set('Authorization', 'Bearer ' + renter.token)
-    .send({ type: 'checkout', photos: [FAKE_PHOTO], notes: 'الجهاز سليم' });
+    .send({
+      type: 'checkout',
+      photos: [FAKE_PHOTO],
+      notes: 'الجهاز سليم',
+      checklist: ['working', 'battery', 'not_a_real_key'],
+      certificateUrl: FAKE_PHOTO,
+    });
   assert.equal(checkoutRes.status, 201);
   assert.equal(checkoutRes.body.item.ownerId, owner.id);
   assert.equal(checkoutRes.body.item.otherPartyId, renter.id);
+  assert.deepEqual(checkoutRes.body.item.checklist, ['working', 'battery'], 'unknown checklist keys must be filtered out');
+  assert.equal(checkoutRes.body.item.certificateUrl, FAKE_PHOTO);
 
   // المالك لازم يحدد otherPartyId عشان يشوف/يضيف سجلات
   const ownerNoPartyRes = await request(app)
@@ -64,6 +72,7 @@ test('handover records: create/list scoped to owner+renter, signed-photos scoped
     .set('Authorization', 'Bearer ' + owner.token);
   assert.equal(ownerSignedRes.status, 200);
   assert.equal(ownerSignedRes.body.urls.length, 1);
+  assert.ok(ownerSignedRes.body.certificateUrl, 'certificate url should also be signed and returned');
 
   const renterSignedRes = await request(app)
     .get('/api/equipment/handovers/' + handoverId + '/signed-photos')
