@@ -97,6 +97,17 @@ enum HandoverType {
   checkin  // استلام الجهاز راجع
 }
 
+enum DealType {
+  sale
+  rent
+}
+
+enum DealStatus {
+  pending
+  confirmed
+  cancelled
+}
+
 // ============ MODELS ============
 
 model User {
@@ -141,6 +152,8 @@ model User {
   savedSearches     SavedSearch[]
   handoversAsOwner  HandoverRecord[] @relation("HandoverOwner")
   handoversAsOther  HandoverRecord[] @relation("HandoverOtherParty")
+  dealsAsOwner      Deal[]        @relation("DealOwner")
+  dealsAsOther      Deal[]        @relation("DealOtherParty")
 
   @@map("users")
 }
@@ -170,6 +183,7 @@ model Equipment {
 
   requests        RentalRequest[]
   handovers       HandoverRecord[]
+  deals           Deal[]
 
   @@index([category])
   @@index([governorate])
@@ -329,6 +343,28 @@ model SavedSearch {
   createdAt     DateTime           @default(now())
 
   @@map("saved_searches")
+}
+
+// اتفاق متبادل بين المالك والطرف التاني على نوع الصفقة (بيع/إيجار) — لازم يتأكد
+// من الطرفين قبل ما تتفعل خدمة توثيق حالة الجهاز (HandoverRecord) بينهم
+model Deal {
+  id                  String     @id @default(uuid())
+  equipmentId         String
+  equipment           Equipment  @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  ownerId             String
+  owner               User       @relation("DealOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  otherPartyId        String
+  otherParty          User       @relation("DealOtherParty", fields: [otherPartyId], references: [id], onDelete: Cascade)
+  dealType            DealType
+  proposedById        String
+  ownerConfirmed      Boolean    @default(false)
+  otherPartyConfirmed Boolean    @default(false)
+  status              DealStatus @default(pending)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  @@unique([equipmentId, otherPartyId])
+  @@map("deals")
 }
 
 model HandoverRecord {

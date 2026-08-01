@@ -17,6 +17,15 @@ test('handover records: create/list scoped to owner+renter, signed-photos scoped
     .send({ title: 'Handover Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 30 });
   const equipmentId = createRes.body.item.id;
 
+  // خدمة التوثيق متفعّلتش إلا بعد ما الطرفين يتفقوا ويأكدوا نوع الصفقة (اتفاق إيجار هنا)
+  const proposeRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ dealType: 'rent' });
+  await request(app)
+    .post('/api/equipment/deals/' + proposeRes.body.item.id + '/confirm')
+    .set('Authorization', 'Bearer ' + owner.token);
+
   // الطرف التاني (المستأجر) بيوثق استلام الجهاز — مش محتاج يحدد otherPartyId، السيرفر بيحدده تلقائي (المالك)
   const checkoutRes = await request(app)
     .post('/api/equipment/' + equipmentId + '/handovers')

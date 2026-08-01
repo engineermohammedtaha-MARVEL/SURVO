@@ -43,6 +43,14 @@ async function createHandover(req, res) {
     otherPartyId = req.user.id;
   }
 
+  // خدمة توثيق حالة الجهاز متفعّلتش إلا لما الطرفين يتفقوا ويأكدوا نوع الصفقة الأول
+  const deal = await prisma.deal.findUnique({
+    where: { equipmentId_otherPartyId: { equipmentId: equipment.id, otherPartyId } },
+  });
+  if (!deal || deal.status !== 'confirmed') {
+    throw new ApiError(403, 'لازم تتفقوا وتأكدوا نوع الصفقة (بيع/إيجار) الأول قبل ما تقدروا توثقوا حالة الجهاز');
+  }
+
   const { type, photos, notes, checklist, certificateUrl } = req.body;
   if (!['checkout', 'checkin'].includes(type)) throw new ApiError(400, 'نوع التوثيق غير صحيح');
   if (!Array.isArray(photos) || photos.length === 0) throw new ApiError(400, 'ضيف صورة واحدة على الأقل لتوثيق حالة الجهاز');
