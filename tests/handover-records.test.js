@@ -93,6 +93,44 @@ test('handover records: create/list scoped to owner+renter, signed-photos scoped
   assert.ok(ownerNotifs.length >= 1);
 });
 
+test('handover records: sale deals only allow a single checkout, no checkin', async () => {
+  const owner = await createApprovedUser();
+  const buyer = await createApprovedUser();
+  createdUserIds.push(owner.id, buyer.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Sale Handover Test Device', category: 'accessories', listingType: 'sale', salePrice: 500 });
+  const equipmentId = createRes.body.item.id;
+
+  const proposeRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + buyer.token)
+    .send({ dealType: 'sale' });
+  await request(app)
+    .post('/api/equipment/deals/' + proposeRes.body.item.id + '/confirm')
+    .set('Authorization', 'Bearer ' + owner.token);
+
+  const checkinAttemptRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + buyer.token)
+    .send({ type: 'checkin', photos: [FAKE_PHOTO] });
+  assert.equal(checkinAttemptRes.status, 400, 'sale deals must not allow a checkin (return) documentation');
+
+  const firstCheckoutRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + buyer.token)
+    .send({ type: 'checkout', photos: [FAKE_PHOTO] });
+  assert.equal(firstCheckoutRes.status, 201);
+
+  const secondCheckoutRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + buyer.token)
+    .send({ type: 'checkout', photos: [FAKE_PHOTO] });
+  assert.equal(secondCheckoutRes.status, 400, 'sale deals only document the handover once');
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await cleanupUser(id);

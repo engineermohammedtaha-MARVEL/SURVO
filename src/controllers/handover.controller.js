@@ -55,6 +55,16 @@ async function createHandover(req, res) {
   if (!['checkout', 'checkin'].includes(type)) throw new ApiError(400, 'نوع التوثيق غير صحيح');
   if (!Array.isArray(photos) || photos.length === 0) throw new ApiError(400, 'ضيف صورة واحدة على الأقل لتوثيق حالة الجهاز');
 
+  // صفقة البيع/الشراء مالهاش "استلام رجوع" — التسليم بيتم مرة واحدة بس، عكس الإيجار
+  // اللي محتاج تسليم واستلام رجوع كل ما الجهاز يرجع
+  if (deal.dealType === 'sale') {
+    if (type === 'checkin') throw new ApiError(400, 'صفقات البيع والشراء مالهاش استلام رجوع للجهاز');
+    const existingCount = await prisma.handoverRecord.count({
+      where: { equipmentId: equipment.id, ownerId: equipment.ownerId, otherPartyId },
+    });
+    if (existingCount > 0) throw new ApiError(400, 'تم توثيق تسليم صفقة البيع/الشراء دي بالفعل');
+  }
+
   const safeChecklist = Array.isArray(checklist) ? checklist.filter((k) => CHECKLIST_KEYS.includes(k)) : [];
 
   const record = await prisma.handoverRecord.create({
