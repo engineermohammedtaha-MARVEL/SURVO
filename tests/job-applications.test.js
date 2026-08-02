@@ -39,6 +39,10 @@ test('job applications: applying shows up under the applicant own "my applicatio
     .get('/api/jobs/applications/mine')
     .set('Authorization', 'Bearer ' + poster.token);
   assert.equal(posterOwnAppsRes.body.items.length, 0);
+
+  // لازم إشعار وصل لصاحب الوظيفة إن حد اتقدملها
+  const posterNotifs = await prisma.notification.findMany({ where: { userId: poster.id, targetType: 'job-applicants', targetId: jobId } });
+  assert.equal(posterNotifs.length, 1);
 });
 
 test('job postings: poster sees their own postings with applicant count, and can list applicants', async () => {

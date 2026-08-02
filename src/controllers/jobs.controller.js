@@ -58,10 +58,9 @@ async function remove(req, res) {
 }
 
 /**
- * التقديم على الوظيفة بيتم فعليًا عن طريق المراسلة المباشرة أو الاتصال
- * (مش نموذج تقديم رسمي). الـ endpoint ده بيسجل نية التقديم فقط عشان
- * صاحب الإعلان يشوف مين اهتم بالوظيفة، وبيرجّع بيانات التواصل
- * (تليفون صاحب الإعلان) عشان الفرونت يفتح شات أو اتصال مباشرة.
+ * التقديم على الوظيفة — بيسجل نية التقديم، وبيبعت إشعار لصاحب الإعلان
+ * إن فيه حد اتقدملها عشان يقدر يشوف المتقدمين ويتواصل معاهم، وبيرجّع
+ * بيانات التواصل (تليفون صاحب الإعلان) عشان الفرونت يفتح شات أو اتصال مباشرة.
  */
 async function applyOrContact(req, res) {
   const { message } = req.body;
@@ -77,6 +76,16 @@ async function applyOrContact(req, res) {
     update: { message },
     create: { jobId: job.id, applicantId: req.user.id, message },
   });
+
+  await prisma.notification.create({
+    data: {
+      userId: job.posterId,
+      title: 'فيه حد اتقدم لوظيفتك',
+      body: 'حد اتقدم لإعلان "' + job.title + '"، ادخل شوف المتقدمين وتواصل معاه',
+      targetType: 'job-applicants',
+      targetId: job.id,
+    },
+  }).catch(() => {});
 
   res.status(201).json({
     success: true,
