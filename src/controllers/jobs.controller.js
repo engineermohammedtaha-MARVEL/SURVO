@@ -101,4 +101,41 @@ async function myApplications(req, res) {
   res.json({ success: true, items });
 }
 
-module.exports = { list, getOne, create, remove, applyOrContact, myApplications, JOB_TYPES, WORK_TYPES };
+// بيرجع الوظايف اللي المستخدم نفسه نشرها، مع عدد المتقدمين لكل وظيفة
+async function myPostings(req, res) {
+  const items = await prisma.jobPosting.findMany({
+    where: { posterId: req.user.id },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      _count: { select: { applications: true } },
+    },
+  });
+  res.json({
+    success: true,
+    items: items.map((item) => {
+      const { _count, ...rest } = item;
+      return { ...rest, applicantsCount: _count.applications };
+    }),
+  });
+}
+
+// بيرجع قائمة المتقدمين لوظيفة معينة — بس لصاحب الإعلان نفسه
+async function listApplicants(req, res) {
+  const job = await prisma.jobPosting.findUnique({ where: { id: req.params.id }, select: { id: true, posterId: true } });
+  if (!job) throw new ApiError(404, 'الوظيفة غير موجودة');
+  if (job.posterId !== req.user.id) throw new ApiError(403, 'مش مسموح لك تشوف المتقدمين للوظيفة دي');
+
+  const items = await prisma.jobApplication.findMany({
+    where: { jobId: job.id },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      applicant: { select: { id: true, fullName: true, phone: true, verification: true, avatarUrl: true, accountType: true } },
+    },
+  });
+  res.json({ success: true, items });
+}
+
+module.exports = {
+  list, getOne, create, remove, applyOrContact, myApplications, myPostings, listApplicants,
+  JOB_TYPES, WORK_TYPES,
+};

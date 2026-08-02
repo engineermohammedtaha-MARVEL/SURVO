@@ -41,6 +41,56 @@ test('job applications: applying shows up under the applicant own "my applicatio
   assert.equal(posterOwnAppsRes.body.items.length, 0);
 });
 
+test('job postings: poster sees their own postings with applicant count, and can list applicants', async () => {
+  const poster = await createApprovedUser();
+  const applicant = await createApprovedUser();
+  const stranger = await createApprovedUser();
+  createdUserIds.push(poster.id, applicant.id, stranger.id);
+
+  const jobRes = await request(app)
+    .post('/api/jobs')
+    .set('Authorization', 'Bearer ' + poster.token)
+    .send({ title: 'مساح ميداني', jobType: 'surveyor', workType: 'daily', governorate: 'Giza' });
+  const jobId = jobRes.body.item.id;
+
+  const myPostingsBeforeRes = await request(app)
+    .get('/api/jobs/mine')
+    .set('Authorization', 'Bearer ' + poster.token);
+  assert.equal(myPostingsBeforeRes.body.items.length, 1);
+  assert.equal(myPostingsBeforeRes.body.items[0].id, jobId);
+  assert.equal(myPostingsBeforeRes.body.items[0].applicantsCount, 0);
+
+  // مستخدم تاني ميقدرش يشوف وظايف حد غيره من غير endpoint التاني
+  const applicantOwnPostingsRes = await request(app)
+    .get('/api/jobs/mine')
+    .set('Authorization', 'Bearer ' + applicant.token);
+  assert.equal(applicantOwnPostingsRes.body.items.length, 0);
+
+  await request(app)
+    .post('/api/jobs/' + jobId + '/contact')
+    .set('Authorization', 'Bearer ' + applicant.token)
+    .send({ message: 'عندي خبرة 5 سنين' });
+
+  const myPostingsAfterRes = await request(app)
+    .get('/api/jobs/mine')
+    .set('Authorization', 'Bearer ' + poster.token);
+  assert.equal(myPostingsAfterRes.body.items[0].applicantsCount, 1);
+
+  // الغريب مش صاحب الوظيفة، ميقدرش يشوف قائمة المتقدمين
+  const strangerApplicantsRes = await request(app)
+    .get('/api/jobs/' + jobId + '/applicants')
+    .set('Authorization', 'Bearer ' + stranger.token);
+  assert.equal(strangerApplicantsRes.status, 403);
+
+  const applicantsRes = await request(app)
+    .get('/api/jobs/' + jobId + '/applicants')
+    .set('Authorization', 'Bearer ' + poster.token);
+  assert.equal(applicantsRes.status, 200);
+  assert.equal(applicantsRes.body.items.length, 1);
+  assert.equal(applicantsRes.body.items[0].applicant.id, applicant.id);
+  assert.equal(applicantsRes.body.items[0].message, 'عندي خبرة 5 سنين');
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await prisma.jobApplication.deleteMany({ where: { applicantId: id } });
