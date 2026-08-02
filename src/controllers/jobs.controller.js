@@ -3,17 +3,15 @@ const ApiError = require('../utils/apiError');
 
 const JOB_TYPES = ['engineer', 'surveyor', 'assistant', 'totalstation', 'gps', 'level'];
 const WORK_TYPES = ['full', 'daily', 'remote'];
-const POSTING_TYPES = ['hiring', 'offering'];
 
 async function list(req, res) {
-  const { jobType, workType, governorate, status = 'open', postingType } = req.query;
+  const { jobType, workType, governorate, status = 'open' } = req.query;
   const items = await prisma.jobPosting.findMany({
     where: {
       ...(jobType && { jobType }),
       ...(workType && { workType }),
       ...(governorate && { governorate }),
       ...(status && { status }),
-      ...(postingType && POSTING_TYPES.includes(postingType) && { postingType }),
     },
     orderBy: { createdAt: 'desc' },
     include: {
@@ -35,17 +33,16 @@ async function getOne(req, res) {
 }
 
 async function create(req, res) {
-  const { title, jobType, workType, governorate, description, salary, postingType } = req.body;
+  const { title, jobType, workType, governorate, description, salary } = req.body;
 
   if (!title || !jobType || !workType || !governorate) {
     throw new ApiError(400, 'اسم الوظيفة ونوعها ونوع الدوام والمحافظة مطلوبين');
   }
   if (!JOB_TYPES.includes(jobType)) throw new ApiError(400, 'نوع الوظيفة غير صحيح');
   if (!WORK_TYPES.includes(workType)) throw new ApiError(400, 'نوع الدوام غير صحيح');
-  const safePostingType = POSTING_TYPES.includes(postingType) ? postingType : 'hiring';
 
   const item = await prisma.jobPosting.create({
-    data: { posterId: req.user.id, postingType: safePostingType, title, jobType, workType, governorate, description, salary },
+    data: { posterId: req.user.id, title, jobType, workType, governorate, description, salary },
   });
 
   res.status(201).json({ success: true, item });
@@ -80,14 +77,11 @@ async function applyOrContact(req, res) {
     create: { jobId: job.id, applicantId: req.user.id, message },
   });
 
-  const isOffering = job.postingType === 'offering';
   await prisma.notification.create({
     data: {
       userId: job.posterId,
-      title: isOffering ? 'فيه حد مهتم بالفريق اللي عرضته' : 'فيه حد اتقدم لوظيفتك',
-      body: isOffering
-        ? 'حد اتواصل بخصوص إعلان "' + job.title + '"، ادخل شوف التفاصيل وتواصل معاه'
-        : 'حد اتقدم لإعلان "' + job.title + '"، ادخل شوف المتقدمين وتواصل معاه',
+      title: 'فيه حد اتقدم لوظيفتك',
+      body: 'حد اتقدم لإعلان "' + job.title + '"، ادخل شوف المتقدمين وتواصل معاه',
       targetType: 'job-applicants',
       targetId: job.id,
     },
@@ -100,15 +94,10 @@ async function applyOrContact(req, res) {
   });
 }
 
-// بيرجع الوظايف اللي المستخدم اتقدملها (سجّل نية تقديم من زرار "تقديم/تواصل") —
-// ممكن نفلتر بنوع الإعلان (hiring/offering) عشان نفرّق بين "طلبات التوظيف" و"طلبات العرض"
+// بيرجع الوظايف اللي المستخدم اتقدملها (سجّل نية تقديم من زرار "تقديم/تواصل")
 async function myApplications(req, res) {
-  const { postingType } = req.query;
   const items = await prisma.jobApplication.findMany({
-    where: {
-      applicantId: req.user.id,
-      ...(postingType && POSTING_TYPES.includes(postingType) && { job: { postingType } }),
-    },
+    where: { applicantId: req.user.id },
     orderBy: { createdAt: 'desc' },
     include: {
       job: {
@@ -123,12 +112,8 @@ async function myApplications(req, res) {
 
 // بيرجع الوظايف اللي المستخدم نفسه نشرها، مع عدد المتقدمين لكل وظيفة
 async function myPostings(req, res) {
-  const { postingType } = req.query;
   const items = await prisma.jobPosting.findMany({
-    where: {
-      posterId: req.user.id,
-      ...(postingType && POSTING_TYPES.includes(postingType) && { postingType }),
-    },
+    where: { posterId: req.user.id },
     orderBy: { createdAt: 'desc' },
     include: {
       _count: { select: { applications: true } },

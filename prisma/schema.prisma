@@ -58,11 +58,6 @@ enum JobType {
   level
 }
 
-enum JobPostingType {
-  hiring   // مكتب/شركة محتاجة توظّف حد (طلب)
-  offering // فرد أو فريق بيعرض نفسه متاح للشغل (عرض)
-}
-
 enum JobWorkType {
   full   // شهري / دوام كامل
   daily  // يومي
@@ -217,19 +212,18 @@ model RentalRequest {
 }
 
 model JobPosting {
-  id            String         @id @default(uuid())
+  id            String        @id @default(uuid())
   posterId      String
-  poster        User           @relation(fields: [posterId], references: [id], onDelete: Cascade)
-  postingType   JobPostingType @default(hiring)
+  poster        User          @relation(fields: [posterId], references: [id], onDelete: Cascade)
   title         String
   jobType       JobType
   workType      JobWorkType
   governorate   String
   description   String?
   salary        String?
-  status        JobStatus      @default(open)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  status        JobStatus     @default(open)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   applications  JobApplication[]
 
