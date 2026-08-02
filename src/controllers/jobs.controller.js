@@ -85,4 +85,20 @@ async function applyOrContact(req, res) {
   });
 }
 
-module.exports = { list, getOne, create, remove, applyOrContact, JOB_TYPES, WORK_TYPES };
+// بيرجع الوظايف اللي المستخدم اتقدملها (سجّل نية تقديم من زرار "تقديم/تواصل")
+async function myApplications(req, res) {
+  const items = await prisma.jobApplication.findMany({
+    where: { applicantId: req.user.id },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      job: {
+        include: {
+          poster: { select: { id: true, fullName: true, phone: true, verification: true } },
+        },
+      },
+    },
+  });
+  res.json({ success: true, items });
+}
+
+module.exports = { list, getOne, create, remove, applyOrContact, myApplications, JOB_TYPES, WORK_TYPES };

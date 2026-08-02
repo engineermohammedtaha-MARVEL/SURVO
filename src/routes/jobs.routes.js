@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
-const { list, getOne, create, remove, applyOrContact } = require('../controllers/jobs.controller');
+const { list, getOne, create, remove, applyOrContact, myApplications } = require('../controllers/jobs.controller');
 
 router.get('/', list);
+router.get('/applications/mine', requireAuth, myApplications);
 router.get('/:id', getOne);
 router.post('/', requireAuth, create);
 router.delete('/:id', requireAuth, remove);
