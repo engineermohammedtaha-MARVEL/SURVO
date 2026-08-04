@@ -1,6 +1,6 @@
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { request, app, prisma, createApprovedUser, createAdminUser } = require('./helpers');
+const { request, app, prisma, createApprovedUser, createAdminUser, cleanupUser } = require('./helpers');
 
 const createdUserIds = [];
 
@@ -80,9 +80,7 @@ test('editing an approved equipment listing sends it back to pending review', as
 
 after(async () => {
   for (const id of createdUserIds) {
-    await prisma.equipment.deleteMany({ where: { ownerId: id } });
-    await prisma.notification.deleteMany({ where: { userId: id } });
-    await prisma.user.deleteMany({ where: { id } });
+    await cleanupUser(id);
   }
   await prisma.$disconnect();
 });

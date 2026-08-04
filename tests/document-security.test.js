@@ -1,6 +1,6 @@
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { request, app, prisma, createApprovedUser, createAdminUser, uniqueSuffix } = require('./helpers');
+const { request, app, prisma, createApprovedUser, createAdminUser, uniqueSuffix, cleanupUser } = require('./helpers');
 
 const createdUserIds = [];
 
@@ -84,9 +84,7 @@ test('support ticket attachments upload as authenticated and admin can view via 
 
 after(async () => {
   for (const id of createdUserIds) {
-    await prisma.equipment.deleteMany({ where: { ownerId: id } });
-    await prisma.notification.deleteMany({ where: { userId: id } });
-    await prisma.user.deleteMany({ where: { id } });
+    await cleanupUser(id);
   }
   await prisma.$disconnect();
 });

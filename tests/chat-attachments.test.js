@@ -1,6 +1,6 @@
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { request, app, prisma, createApprovedUser } = require('./helpers');
+const { request, app, prisma, createApprovedUser, cleanupUser } = require('./helpers');
 
 const createdUserIds = [];
 
@@ -54,8 +54,7 @@ test('chat attachments upload as authenticated and are only signable by conversa
 
 after(async () => {
   for (const id of createdUserIds) {
-    await prisma.notification.deleteMany({ where: { userId: id } });
-    await prisma.user.deleteMany({ where: { id } });
+    await cleanupUser(id);
   }
   await prisma.$disconnect();
 });

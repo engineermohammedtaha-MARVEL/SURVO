@@ -1,6 +1,6 @@
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { request, app, prisma, createApprovedUser, uniqueSuffix } = require('./helpers');
+const { request, app, prisma, createApprovedUser, uniqueSuffix, cleanupUser } = require('./helpers');
 
 const createdUserIds = [];
 
@@ -52,7 +52,7 @@ test('login is case-insensitive on email but password stays case-sensitive', asy
 
 after(async () => {
   for (const id of createdUserIds) {
-    await prisma.user.deleteMany({ where: { id } });
+    await cleanupUser(id);
   }
   await prisma.$disconnect();
 });

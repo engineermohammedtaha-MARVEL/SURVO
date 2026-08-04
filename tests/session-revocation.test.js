@@ -1,7 +1,7 @@
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
-const { request, app, prisma, createApprovedUser } = require('./helpers');
+const { request, app, prisma, createApprovedUser, cleanupUser } = require('./helpers');
 
 const createdUserIds = [];
 
@@ -49,7 +49,7 @@ test('rejecting an account invalidates its existing token immediately', async ()
 
 after(async () => {
   for (const id of createdUserIds) {
-    await prisma.user.deleteMany({ where: { id } });
+    await cleanupUser(id);
   }
   await prisma.$disconnect();
 });

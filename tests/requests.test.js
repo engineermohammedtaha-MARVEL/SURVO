@@ -1,6 +1,6 @@
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { request, app, prisma, createApprovedUser } = require('./helpers');
+const { request, app, prisma, createApprovedUser, cleanupUser } = require('./helpers');
 
 const createdUserIds = [];
 
@@ -104,8 +104,7 @@ test('request brand is stored for device categories and cleared for accessories'
 
 after(async () => {
   for (const id of createdUserIds) {
-    await prisma.rentalRequest.deleteMany({ where: { requesterId: id } });
-    await prisma.user.deleteMany({ where: { id } });
+    await cleanupUser(id);
   }
   await prisma.$disconnect();
 });
