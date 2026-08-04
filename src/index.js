@@ -30,7 +30,20 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors());
+
+// مسموح بس لفرونت إند SURVO الرسمي (الويب + تطبيق الأندرويد بتاع Capacitor).
+// طلبات من غير Origin header (زي curl أو health checks) بتتسمح دايمًا لأنها مش متصفح.
+const ALLOWED_ORIGINS = [
+  'https://engineermohammedtaha-marvel.github.io',
+  'https://localhost', // Capacitor Android WebView (androidScheme الافتراضي)
+  'http://localhost',
+];
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+}));
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.static(path.join(__dirname, '..', 'public')));
