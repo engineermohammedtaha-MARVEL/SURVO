@@ -36,6 +36,7 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 // طلبات من غير Origin header (زي curl أو health checks) بتتسمح دايمًا لأنها مش متصفح.
 const ALLOWED_ORIGINS = [
   'https://engineermohammedtaha-marvel.github.io',
+  'https://survo-production.up.railway.app', // لوحة الإدارة (admin.html) بتتخدم من نفس دومين الباك اند
   'https://localhost', // Capacitor Android WebView (androidScheme الافتراضي)
   'http://localhost',
   'null', // فتح index.html مباشرة كملف محلي (file://) بيبعت Origin: null حرفيًا
