@@ -38,6 +38,7 @@ const ALLOWED_ORIGINS = [
   'https://engineermohammedtaha-marvel.github.io',
   'https://localhost', // Capacitor Android WebView (androidScheme الافتراضي)
   'http://localhost',
+  'null', // فتح index.html مباشرة كملف محلي (file://) بيبعت Origin: null حرفيًا
 ];
 app.use(cors({
   origin(origin, callback) {
