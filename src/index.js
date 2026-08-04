@@ -9,6 +9,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const ApiError = require('./utils/apiError');
 
 const authRoutes = require('./routes/auth.routes');
 const usersRoutes = require('./routes/users.routes');
@@ -41,7 +42,7 @@ const ALLOWED_ORIGINS = [
 app.use(cors({
   origin(origin, callback) {
     if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    callback(new Error('Not allowed by CORS'));
+    callback(new ApiError(403, 'الموقع ده مش مسموح له يتواصل مع السيرفر'));
   },
 }));
 app.use(express.json({ limit: '5mb' }));
