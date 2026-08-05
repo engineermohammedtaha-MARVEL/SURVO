@@ -8,7 +8,7 @@ function dealTypeLabel(dealType) {
 // بيقترح (أو يعيد اقتراح) اتفاق على نوع الصفقة بين المالك والطرف التاني — لازم
 // يتأكد الطرفين قبل ما تتفعل خدمة توثيق حالة الجهاز بينهم
 async function proposeDeal(req, res) {
-  const equipment = await prisma.equipment.findUnique({ where: { id: req.params.id }, select: { id: true, ownerId: true } });
+  const equipment = await prisma.equipment.findUnique({ where: { id: req.params.id }, select: { id: true, ownerId: true, title: true } });
   if (!equipment) throw new ApiError(404, 'الجهاز غير موجود');
 
   const isOwner = req.user.id === equipment.ownerId;
@@ -53,7 +53,7 @@ async function proposeDeal(req, res) {
     data: {
       userId: counterpartyId,
       title: 'فيه اقتراح اتفاق جديد',
-      body: 'نوع الصفقة المقترحة: ' + dealTypeLabel(dealType) + ' — يحتاج تأكيدك',
+      body: '"' + equipment.title + '" — نوع الصفقة المقترحة: ' + dealTypeLabel(dealType) + ' — يحتاج تأكيدك',
       targetType: 'deal',
       targetId: deal.id,
     },
@@ -63,7 +63,10 @@ async function proposeDeal(req, res) {
 }
 
 async function confirmDeal(req, res) {
-  const deal = await prisma.deal.findUnique({ where: { id: req.params.dealId } });
+  const deal = await prisma.deal.findUnique({
+    where: { id: req.params.dealId },
+    include: { equipment: { select: { title: true } } },
+  });
   if (!deal) throw new ApiError(404, 'الاتفاق غير موجود');
   if (req.user.id !== deal.ownerId && req.user.id !== deal.otherPartyId) throw new ApiError(403, 'مش طرف في الاتفاق ده');
   if (deal.status === 'cancelled') throw new ApiError(400, 'الاتفاق ده اتلغى، لازم تقترحوا اتفاق جديد');
@@ -86,7 +89,7 @@ async function confirmDeal(req, res) {
           data: {
             userId,
             title: 'تم تأكيد الاتفاق ✓',
-            body: 'نوع الصفقة: ' + dealTypeLabel(deal.dealType) + ' — تقدروا دلوقتي توثقوا حالة الجهاز',
+            body: '"' + deal.equipment.title + '" — نوع الصفقة: ' + dealTypeLabel(deal.dealType) + ' — تقدروا دلوقتي توثقوا حالة الجهاز',
             targetType: 'deal',
             targetId: deal.id,
           },
@@ -99,7 +102,7 @@ async function confirmDeal(req, res) {
       data: {
         userId: counterpartyId,
         title: 'تم تأكيد الاتفاق من الطرف التاني',
-        body: 'بانتظار تأكيدك — نوع الصفقة: ' + dealTypeLabel(deal.dealType),
+        body: '"' + deal.equipment.title + '" — بانتظار تأكيدك — نوع الصفقة: ' + dealTypeLabel(deal.dealType),
         targetType: 'deal',
         targetId: deal.id,
       },
@@ -110,7 +113,10 @@ async function confirmDeal(req, res) {
 }
 
 async function cancelDeal(req, res) {
-  const deal = await prisma.deal.findUnique({ where: { id: req.params.dealId } });
+  const deal = await prisma.deal.findUnique({
+    where: { id: req.params.dealId },
+    include: { equipment: { select: { title: true } } },
+  });
   if (!deal) throw new ApiError(404, 'الاتفاق غير موجود');
   if (req.user.id !== deal.ownerId && req.user.id !== deal.otherPartyId) throw new ApiError(403, 'مش طرف في الاتفاق ده');
   if (deal.status === 'cancelled') return res.json({ success: true, item: deal });
@@ -121,6 +127,7 @@ async function cancelDeal(req, res) {
     data: {
       userId: counterpartyId,
       title: 'تم إلغاء اقتراح الاتفاق',
+      body: '"' + deal.equipment.title + '"',
       targetType: 'deal',
       targetId: deal.id,
     },
