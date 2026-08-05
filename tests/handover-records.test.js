@@ -131,6 +131,52 @@ test('handover records: sale deals only allow a single checkout, no checkin', as
   assert.equal(secondCheckoutRes.status, 400, 'sale deals only document the handover once');
 });
 
+test('my-equipment list flags a device as pending return while it is checked out to a renter', async () => {
+  const owner = await createApprovedUser();
+  const renter = await createApprovedUser();
+  createdUserIds.push(owner.id, renter.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Pending Return Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 40 });
+  const equipmentId = createRes.body.item.id;
+
+  const proposeRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ dealType: 'rent' });
+  await request(app)
+    .post('/api/equipment/deals/' + proposeRes.body.item.id + '/confirm')
+    .set('Authorization', 'Bearer ' + owner.token);
+
+  // قبل أي تسليم، مفروض مفيش استرجاع معلّق
+  const beforeRes = await request(app).get('/api/equipment/mine').set('Authorization', 'Bearer ' + owner.token);
+  const beforeItem = beforeRes.body.items.find((i) => i.id === equipmentId);
+  assert.deepEqual(beforeItem.pendingReturns, []);
+
+  // بعد التسليم (checkout)، الجهاز لازم يظهر كاسترجاع معلّق للمالك
+  await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ type: 'checkout', photos: [FAKE_PHOTO] });
+
+  const afterCheckoutRes = await request(app).get('/api/equipment/mine').set('Authorization', 'Bearer ' + owner.token);
+  const afterCheckoutItem = afterCheckoutRes.body.items.find((i) => i.id === equipmentId);
+  assert.equal(afterCheckoutItem.pendingReturns.length, 1);
+  assert.equal(afterCheckoutItem.pendingReturns[0].otherPartyId, renter.id);
+
+  // بعد ما المالك يوثّق الاستلام (checkin)، الاسترجاع المعلّق لازم يختفي
+  await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ type: 'checkin', photos: [FAKE_PHOTO], otherPartyId: renter.id });
+
+  const afterCheckinRes = await request(app).get('/api/equipment/mine').set('Authorization', 'Bearer ' + owner.token);
+  const afterCheckinItem = afterCheckinRes.body.items.find((i) => i.id === equipmentId);
+  assert.deepEqual(afterCheckinItem.pendingReturns, []);
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await cleanupUser(id);

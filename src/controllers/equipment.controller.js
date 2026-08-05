@@ -204,12 +204,44 @@ async function remove(req, res) {
   res.json({ success: true });
 }
 
+// بيرجّع لكل جهاز أي إيجارات مؤكدة لسه الجهاز فيها عند الطرف التاني ومتسلّمش
+// رجوع لصاحبه (آخر سجل توثيق ليها "تسليم" مش "استلام") — عشان المالك يعرف
+// إن فيه جهاز لسه محتاج يستلمه ويوثّق رجوعه
+async function attachPendingReturns(items, ownerId) {
+  const equipmentIds = items.map((i) => i.id);
+  if (!equipmentIds.length) return items;
+
+  const rentDeals = await prisma.deal.findMany({
+    where: { equipmentId: { in: equipmentIds }, dealType: 'rent', status: 'confirmed' },
+    select: { equipmentId: true, otherPartyId: true, otherParty: { select: { id: true, fullName: true } } },
+  });
+  if (!rentDeals.length) return items.map((item) => ({ ...item, pendingReturns: [] }));
+
+  const pendingByEquipment = {};
+  await Promise.all(
+    rentDeals.map(async (deal) => {
+      const lastRecord = await prisma.handoverRecord.findFirst({
+        where: { equipmentId: deal.equipmentId, ownerId, otherPartyId: deal.otherPartyId },
+        orderBy: { createdAt: 'desc' },
+        select: { type: true },
+      });
+      if (lastRecord && lastRecord.type === 'checkout') {
+        if (!pendingByEquipment[deal.equipmentId]) pendingByEquipment[deal.equipmentId] = [];
+        pendingByEquipment[deal.equipmentId].push({ otherPartyId: deal.otherPartyId, otherPartyName: deal.otherParty.fullName });
+      }
+    })
+  );
+
+  return items.map((item) => ({ ...item, pendingReturns: pendingByEquipment[item.id] || [] }));
+}
+
 async function myEquipment(req, res) {
   const items = await prisma.equipment.findMany({
     where: { ownerId: req.user.id },
     orderBy: { createdAt: 'desc' },
   });
-  res.json({ success: true, items });
+  const withReturns = await attachPendingReturns(items, req.user.id);
+  res.json({ success: true, items: withReturns });
 }
 
 module.exports = { list, getOne, create, update, remove, myEquipment, recordView };
