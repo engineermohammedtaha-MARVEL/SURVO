@@ -19,11 +19,13 @@ const {
   confirmDeal,
   cancelDeal,
   getDeal,
+  getDealById,
 } = require('../controllers/deal.controller');
 
 router.get('/', list);
 router.get('/mine', requireAuth, myEquipment);
 router.get('/handovers/:handoverId/signed-photos', requireAuth, getSignedHandoverPhotos);
+router.get('/deals/:dealId', requireAuth, getDealById);
 router.post('/deals/:dealId/confirm', requireAuth, confirmDeal);
 router.post('/deals/:dealId/cancel', requireAuth, cancelDeal);
 router.get('/:id/handovers', requireAuth, listHandovers);

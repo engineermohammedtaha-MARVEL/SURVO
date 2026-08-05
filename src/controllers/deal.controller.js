@@ -54,8 +54,8 @@ async function proposeDeal(req, res) {
       userId: counterpartyId,
       title: 'فيه اقتراح اتفاق جديد',
       body: 'نوع الصفقة المقترحة: ' + dealTypeLabel(dealType) + ' — يحتاج تأكيدك',
-      targetType: 'equipment',
-      targetId: equipment.id,
+      targetType: 'deal',
+      targetId: deal.id,
     },
   }).catch(() => {});
 
@@ -87,8 +87,8 @@ async function confirmDeal(req, res) {
             userId,
             title: 'تم تأكيد الاتفاق ✓',
             body: 'نوع الصفقة: ' + dealTypeLabel(deal.dealType) + ' — تقدروا دلوقتي توثقوا حالة الجهاز',
-            targetType: 'equipment',
-            targetId: deal.equipmentId,
+            targetType: 'deal',
+            targetId: deal.id,
           },
         })
       )
@@ -100,8 +100,8 @@ async function confirmDeal(req, res) {
         userId: counterpartyId,
         title: 'تم تأكيد الاتفاق من الطرف التاني',
         body: 'بانتظار تأكيدك — نوع الصفقة: ' + dealTypeLabel(deal.dealType),
-        targetType: 'equipment',
-        targetId: deal.equipmentId,
+        targetType: 'deal',
+        targetId: deal.id,
       },
     }).catch(() => {});
   }
@@ -121,8 +121,8 @@ async function cancelDeal(req, res) {
     data: {
       userId: counterpartyId,
       title: 'تم إلغاء اقتراح الاتفاق',
-      targetType: 'equipment',
-      targetId: deal.equipmentId,
+      targetType: 'deal',
+      targetId: deal.id,
     },
   }).catch(() => {});
 
@@ -143,4 +143,13 @@ async function getDeal(req, res) {
   res.json({ success: true, item: deal || null });
 }
 
-module.exports = { proposeDeal, confirmDeal, cancelDeal, getDeal };
+// بيرجع اتفاق بالـ id بتاعه مباشرة — مستخدم من رابط الإشعار عشان نوصل المستخدم
+// (مالك أو طرف تاني) لصفحة توثيق الجهاز بالظبط من غير ما يحتاج يدور عليها
+async function getDealById(req, res) {
+  const deal = await prisma.deal.findUnique({ where: { id: req.params.dealId } });
+  if (!deal) throw new ApiError(404, 'الاتفاق غير موجود');
+  if (req.user.id !== deal.ownerId && req.user.id !== deal.otherPartyId) throw new ApiError(403, 'مش طرف في الاتفاق ده');
+  res.json({ success: true, item: deal });
+}
+
+module.exports = { proposeDeal, confirmDeal, cancelDeal, getDeal, getDealById };

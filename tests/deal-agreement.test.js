@@ -96,6 +96,60 @@ test('deal agreement gates the handover documentation service until both sides c
   assert.equal(reProposeRes.body.item.dealType, 'sale');
 });
 
+test('deal notifications point at targetType "deal" so either party can jump straight to the handover screen', async () => {
+  const owner = await createApprovedUser();
+  const renter = await createApprovedUser();
+  const stranger = await createApprovedUser();
+  createdUserIds.push(owner.id, renter.id, stranger.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Notification Target Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 15 });
+  const equipmentId = createRes.body.item.id;
+
+  // الطرف التاني (المستأجر) بيقترح الاتفاق — الإشعار المفروض يوصل للمالك
+  const proposeRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ dealType: 'rent' });
+  const dealId = proposeRes.body.item.id;
+
+  const notif = await prisma.notification.findFirst({ where: { userId: owner.id, title: { contains: 'اقتراح اتفاق' } } });
+  assert.ok(notif, 'owner should be notified of the new proposal');
+  assert.equal(notif.targetType, 'deal');
+  assert.equal(notif.targetId, dealId);
+
+  // المالك (اللي وصله الإشعار) يقدر يفتح الاتفاق مباشرة بالـ id بتاعه
+  const ownerGetRes = await request(app)
+    .get('/api/equipment/deals/' + dealId)
+    .set('Authorization', 'Bearer ' + owner.token);
+  assert.equal(ownerGetRes.status, 200);
+  assert.equal(ownerGetRes.body.item.id, dealId);
+  assert.equal(ownerGetRes.body.item.equipmentId, equipmentId);
+
+  // الطرف التاني (اللي اقترح) يقدر يفتحه بنفس الطريقة
+  const renterGetRes = await request(app)
+    .get('/api/equipment/deals/' + dealId)
+    .set('Authorization', 'Bearer ' + renter.token);
+  assert.equal(renterGetRes.status, 200);
+
+  // غريب مش طرف في الاتفاق ياخد 403
+  const strangerGetRes = await request(app)
+    .get('/api/equipment/deals/' + dealId)
+    .set('Authorization', 'Bearer ' + stranger.token);
+  assert.equal(strangerGetRes.status, 403);
+
+  // بعد ما المالك يأكد، الإشعار اللي بيوصل للمستأجر لازم يبقى نفس النوع كمان
+  await request(app)
+    .post('/api/equipment/deals/' + dealId + '/confirm')
+    .set('Authorization', 'Bearer ' + owner.token);
+  const confirmedNotif = await prisma.notification.findFirst({ where: { userId: renter.id, title: { contains: 'تأكيد الاتفاق' } } });
+  assert.ok(confirmedNotif);
+  assert.equal(confirmedNotif.targetType, 'deal');
+  assert.equal(confirmedNotif.targetId, dealId);
+});
+
 test('a deal proposed on a still-pending (unapproved) device listing stays reachable for its counterparty', async () => {
   const owner = await createApprovedUser();
   const buyer = await createApprovedUser();
