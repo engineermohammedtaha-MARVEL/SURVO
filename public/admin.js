@@ -201,6 +201,85 @@ async function act(id, action, reason) {
   }
 }
 
+function verificationCardEl(u) {
+  const date = new Date(u.updatedAt).toLocaleString('ar-EG');
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'verification-' + u.id;
+
+  const docs = Object.keys(DOC_LABELS).filter(function (key) { return u[key]; });
+
+  card.innerHTML =
+    '<div class="card-header">' +
+    '<div class="card-name">' + escapeHtml(u.fullName) + '</div>' +
+    '<div class="card-date">' + date + '</div>' +
+    '</div>' +
+    '<div class="card-meta">' +
+    '<span>📱 ' + escapeHtml(u.phone) + '</span>' +
+    '<span>✉️ ' + escapeHtml(u.email || '—') + '</span>' +
+    '<span>' + escapeHtml(ACCOUNT_TYPE_LABELS[u.accountType] || u.accountType) + '</span>' +
+    '<span>📍 ' + escapeHtml(u.governorate || '—') + '</span>' +
+    '</div>' +
+    '<div class="docs-label">المستندات المرفوعة</div>' +
+    (docs.length
+      ? '<div class="docs-row">' + docs.map(function (key) {
+          return '<a class="doc-link" href="#" data-doc-url="' + escapeHtml(u[key]) + '">' + DOC_LABELS[key] + '</a>';
+        }).join('') + '</div>'
+      : '<div class="no-docs">⚠ المستخدم لسه ما رفعش أي مستندات</div>') +
+    '<div class="actions"></div>';
+  wireDocLinks(card);
+
+  const actionsCell = card.querySelector('.actions');
+  const approveBtn = document.createElement('button');
+  approveBtn.className = 'approve';
+  approveBtn.textContent = '✓ توثيق';
+  approveBtn.addEventListener('click', function () { actVerification(u.id, 'approve'); });
+
+  const rejectBtn = document.createElement('button');
+  rejectBtn.className = 'reject';
+  rejectBtn.textContent = '✕ رفض';
+  rejectBtn.addEventListener('click', function () {
+    const reason = prompt('اكتب سبب رفض طلب التوثيق (هيتبعت للمستخدم كإشعار):', '');
+    if (reason === null) return;
+    actVerification(u.id, 'reject', reason);
+  });
+
+  actionsCell.appendChild(approveBtn);
+  actionsCell.appendChild(rejectBtn);
+  return card;
+}
+
+async function loadVerifications() {
+  const errorBox = document.getElementById('errorBox');
+  try {
+    const data = await apiCall('/verifications/pending');
+    const wrap = document.getElementById('verificationsWrap');
+    const empty = document.getElementById('verificationsEmptyBox');
+    wrap.innerHTML = '';
+    if (!data.users.length) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.users.forEach(function (u) { wrap.appendChild(verificationCardEl(u)); });
+  } catch (err) {
+    errorBox.textContent = err.message || 'تعذر تحميل طلبات التوثيق — تأكد من صحة المفتاح';
+  }
+}
+
+async function actVerification(id, action, reason) {
+  try {
+    await apiCall('/verifications/' + id + '/' + action, {
+      method: 'POST',
+      body: action === 'reject' ? JSON.stringify({ reason: reason || '' }) : undefined,
+    });
+    const card = document.getElementById('verification-' + id);
+    if (card) card.remove();
+  } catch (err) {
+    alert(err.message || 'حصل خطأ');
+  }
+}
+
 const DEVICE_CATEGORY_LABELS = {
   totalstation: 'توتال ستاشن',
   gps: 'GPS',
@@ -577,6 +656,7 @@ document.getElementById('adminConversationReplyBtn').addEventListener('click', s
 
 function loadAll() {
   loadUsers();
+  loadVerifications();
   loadDeviceReports();
   loadPendingEquipment();
   loadSupportTickets();

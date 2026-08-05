@@ -29,8 +29,18 @@ async function getPublicProfile(req, res) {
   res.json({ success: true, user: { ...user, responseRate } });
 }
 
+const VERIFICATION_DOC_FIELDS = ['nationalIdUrl', 'personalPhotoUrl', 'qualificationUrl', 'unionCardUrl', 'commercialRecordUrl'];
+
 async function updateMe(req, res) {
   const { fullName, bio, specialties, governorate, avatarUrl } = req.body;
+
+  // لو المستخدم رفع أي مستند توثيق جديد أو محدّث، الحساب يرجع "قيد المراجعة"
+  // لحد ما الأدمن يتأكد من المستند الجديد ويوثّقه تاني
+  const docUpdates = {};
+  for (const field of VERIFICATION_DOC_FIELDS) {
+    if (req.body[field] !== undefined) docUpdates[field] = req.body[field];
+  }
+  const reVerifying = Object.keys(docUpdates).length > 0;
 
   const user = await prisma.user.update({
     where: { id: req.user.id },
@@ -40,6 +50,8 @@ async function updateMe(req, res) {
       ...(specialties !== undefined && { specialties }),
       ...(governorate !== undefined && { governorate }),
       ...(avatarUrl !== undefined && { avatarUrl }),
+      ...docUpdates,
+      ...(reVerifying && { verification: 'pending' }),
     },
   });
 

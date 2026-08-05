@@ -3,6 +3,7 @@ const router = require('express').Router();
 const { requireAdmin } = require('../middleware/adminAuth');
 const {
   listPendingUsers, approveUser, rejectUser,
+  listPendingVerifications, verifyUser, rejectVerification,
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
   listPendingEquipment, approveEquipment, rejectEquipment,
   listOpenSupportTickets, resolveSupportTicket,
@@ -23,6 +24,9 @@ router.use(requireAdmin);
 router.get('/users/pending', listPendingUsers);
 router.post('/users/:id/approve', approveUser);
 router.post('/users/:id/reject', rejectUser);
+router.get('/verifications/pending', listPendingVerifications);
+router.post('/verifications/:id/approve', verifyUser);
+router.post('/verifications/:id/reject', rejectVerification);
 router.get('/device-reports/pending', listPendingDeviceReports);
 router.post('/device-reports/:id/approve', approveDeviceReport);
 router.post('/device-reports/:id/reject', rejectDeviceReport);

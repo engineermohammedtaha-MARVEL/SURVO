@@ -69,6 +69,72 @@ async function rejectUser(req, res) {
   res.json({ success: true, user: { id: updated.id, accountStatus: updated.accountStatus } });
 }
 
+// حسابات موافق عليها بالفعل بس رفعت مستند توثيق جديد (زي كارنيه نقابة جدّده)
+// وبتستنى مراجعة الأدمن تاني — منفصلة عن قائمة الحسابات الجديدة (accountStatus)
+async function listPendingVerifications(req, res) {
+  const users = await prisma.user.findMany({
+    where: { verification: 'pending', accountStatus: 'approved' },
+    orderBy: { updatedAt: 'desc' },
+    select: {
+      id: true,
+      fullName: true,
+      phone: true,
+      email: true,
+      accountType: true,
+      governorate: true,
+      nationalIdUrl: true,
+      personalPhotoUrl: true,
+      qualificationUrl: true,
+      unionCardUrl: true,
+      commercialRecordUrl: true,
+      updatedAt: true,
+    },
+  });
+  res.json({ success: true, users });
+}
+
+async function verifyUser(req, res) {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) throw new ApiError(404, 'المستخدم غير موجود');
+
+  const updated = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { verification: 'verified' },
+  });
+
+  await prisma.notification.create({
+    data: {
+      userId: updated.id,
+      title: 'تم توثيق حسابك ✓',
+      body: 'اتوافق على مستندات التوثيق بتاعتك، وعلامة "موثّق" هتظهر دلوقتي في بروفايلك.',
+    },
+  });
+
+  res.json({ success: true, user: { id: updated.id, verification: updated.verification } });
+}
+
+async function rejectVerification(req, res) {
+  const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!user) throw new ApiError(404, 'المستخدم غير موجود');
+
+  const reason = (req.body && req.body.reason || '').trim();
+
+  const updated = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { verification: 'unverified' },
+  });
+
+  await prisma.notification.create({
+    data: {
+      userId: updated.id,
+      title: 'تم رفض طلب التوثيق',
+      body: 'مستندات التوثيق اللي رفعتها اترفضت' + (reason ? ': ' + reason : '. راجع المستندات وارفعها تاني.'),
+    },
+  });
+
+  res.json({ success: true, user: { id: updated.id, verification: updated.verification } });
+}
+
 async function listPendingDeviceReports(req, res) {
   const reports = await prisma.deviceReport.findMany({
     where: { moderationStatus: 'pending' },
@@ -316,6 +382,7 @@ async function getSignedDocUrl(req, res) {
 
 module.exports = {
   listPendingUsers, approveUser, rejectUser,
+  listPendingVerifications, verifyUser, rejectVerification,
   listPendingDeviceReports, approveDeviceReport, rejectDeviceReport,
   listPendingEquipment, approveEquipment, rejectEquipment,
   listOpenSupportTickets, resolveSupportTicket,
