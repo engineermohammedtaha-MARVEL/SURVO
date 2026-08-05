@@ -69,7 +69,19 @@ async function getOne(req, res) {
       owner: { select: { id: true, fullName: true, phone: true, rating: true, verification: true, avatarUrl: true } },
     },
   });
-  if (!item || item.moderationStatus !== 'approved') throw new ApiError(404, 'الجهاز غير موجود');
+  if (!item) throw new ApiError(404, 'الجهاز غير موجود');
+
+  if (item.moderationStatus !== 'approved') {
+    const requesterId = req.user && req.user.id;
+    const isOwner = requesterId && requesterId === item.ownerId;
+    // لو صاحب الإعلان اقترح اتفاق على الجهاز قبل ما الأدمن يوافق عليه، لازم الطرف
+    // التاني يقدر يفتح رابط الإشعار ويشوف تفاصيل الجهاز ويأكد الاتفاق، مش يتفاجئ بـ 404
+    const isDealParty = !isOwner && requesterId
+      ? !!(await prisma.deal.findFirst({ where: { equipmentId: item.id, otherPartyId: requesterId } }))
+      : false;
+    if (!isOwner && !isDealParty) throw new ApiError(404, 'الجهاز غير موجود');
+  }
+
   res.json({ success: true, item });
 }
 

@@ -96,6 +96,51 @@ test('deal agreement gates the handover documentation service until both sides c
   assert.equal(reProposeRes.body.item.dealType, 'sale');
 });
 
+test('a deal proposed on a still-pending (unapproved) device listing stays reachable for its counterparty', async () => {
+  const owner = await createApprovedUser();
+  const buyer = await createApprovedUser();
+  const stranger = await createApprovedUser();
+  createdUserIds.push(owner.id, buyer.id, stranger.id);
+
+  // فئة غير الاكسسوارات — بتفضل قيد المراجعة لحد ما الأدمن يوافق عليها
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Pending Device', category: 'totalstation', listingType: 'sale', salePrice: 5000 });
+  const equipmentId = createRes.body.item.id;
+  assert.equal(createRes.body.item.moderationStatus, 'pending');
+
+  // قبل أي اتفاق، أي حد تاني (حتى المشتري المستهدف) لازم ياخد 404 عادي
+  const beforeDealRes = await request(app)
+    .get('/api/equipment/' + equipmentId)
+    .set('Authorization', 'Bearer ' + buyer.token);
+  assert.equal(beforeDealRes.status, 404);
+
+  await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ dealType: 'sale', otherPartyId: buyer.id });
+
+  // المالك يقدر يشوف الجهاز برضه وهو لسه قيد المراجعة
+  const ownerRes = await request(app)
+    .get('/api/equipment/' + equipmentId)
+    .set('Authorization', 'Bearer ' + owner.token);
+  assert.equal(ownerRes.status, 200);
+
+  // بعد ما اتقترح عليه اتفاق، المشتري يقدر يفتح رابط الإشعار ويشوف تفاصيل الجهاز
+  const buyerRes = await request(app)
+    .get('/api/equipment/' + equipmentId)
+    .set('Authorization', 'Bearer ' + buyer.token);
+  assert.equal(buyerRes.status, 200);
+  assert.equal(buyerRes.body.item.id, equipmentId);
+
+  // غريب مش طرف في أي اتفاق لسه ياخد 404
+  const strangerRes = await request(app)
+    .get('/api/equipment/' + equipmentId)
+    .set('Authorization', 'Bearer ' + stranger.token);
+  assert.equal(strangerRes.status, 404);
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await cleanupUser(id);

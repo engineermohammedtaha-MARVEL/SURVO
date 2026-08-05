@@ -30,7 +30,7 @@ router.get('/:id/handovers', requireAuth, listHandovers);
 router.post('/:id/handovers', requireAuth, createHandover);
 router.get('/:id/deal', requireAuth, getDeal);
 router.post('/:id/deal', requireAuth, proposeDeal);
-router.get('/:id', getOne);
+router.get('/:id', optionalAuth, getOne);
 router.post('/', requireAuth, create);
 router.post('/:id/view', optionalAuth, recordView);
 router.patch('/:id', requireAuth, update);
