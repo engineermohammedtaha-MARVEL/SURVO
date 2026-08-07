@@ -10,12 +10,17 @@ const forgotPasswordLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// بيئة الاختبارات الآلية بتعمل عشرات التسجيلات في نفس الساعة عادي جدًا —
+// لازم نستثنيها عشان الحد ده يفضل حماية حقيقية ضد إساءة الاستخدام مش عائق للاختبارات
+const isTestEnv = () => process.env.NODE_ENV === 'test';
+
 // حماية تسجيل الدخول من محاولات تخمين كلمة السر المكثفة
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: isTestEnv,
   message: { success: false, message: 'محاولات دخول كتير، حاول تاني بعد شوية' },
 });
 
@@ -25,6 +30,7 @@ const registerLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: isTestEnv,
   message: { success: false, message: 'محاولات إنشاء حساب كتير، حاول تاني بعد شوية' },
 });
 

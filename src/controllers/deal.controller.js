@@ -49,11 +49,12 @@ async function proposeDeal(req, res) {
     : await prisma.deal.create({ data });
 
   const counterpartyId = isOwner ? otherPartyId : equipment.ownerId;
+  const proposer = await prisma.user.findUnique({ where: { id: req.user.id }, select: { fullName: true } });
   await prisma.notification.create({
     data: {
       userId: counterpartyId,
       title: 'فيه اقتراح اتفاق جديد',
-      body: '"' + equipment.title + '" — نوع الصفقة المقترحة: ' + dealTypeLabel(dealType) + ' — يحتاج تأكيدك',
+      body: (proposer ? proposer.fullName : 'مستخدم') + ' عرض عليك اتفاق على "' + equipment.title + '" — نوع الصفقة المقترحة: ' + dealTypeLabel(dealType) + ' — يحتاج تأكيدك',
       targetType: 'deal',
       targetId: deal.id,
     },

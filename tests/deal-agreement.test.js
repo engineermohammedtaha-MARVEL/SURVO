@@ -195,6 +195,76 @@ test('a deal proposed on a still-pending (unapproved) device listing stays reach
   assert.equal(strangerRes.status, 404);
 });
 
+test('deal proposal notification names the proposer, not just the equipment', async () => {
+  const owner = await createApprovedUser();
+  const renter = await createApprovedUser();
+  createdUserIds.push(owner.id, renter.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Proposer Name Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 25 });
+  const equipmentId = createRes.body.item.id;
+
+  await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ dealType: 'rent' });
+
+  const notif = await prisma.notification.findFirst({ where: { userId: owner.id, title: { contains: 'اقتراح اتفاق' } } });
+  assert.ok(notif, 'owner should be notified of the new proposal');
+  assert.ok(notif.body.includes(renter.fullName), 'notification should name who sent the proposal');
+  assert.ok(notif.body.includes('Proposer Name Test Device'), 'notification should still name the listing');
+});
+
+test('two users who already have a deal on one listing get a fully separate deal when they agree on a different listing', async () => {
+  const owner = await createApprovedUser();
+  const otherParty = await createApprovedUser();
+  createdUserIds.push(owner.id, otherParty.id);
+
+  const createA = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Listing A - Isolation Test', category: 'accessories', listingType: 'rent', pricePerDay: 30 });
+  const equipmentA = createA.body.item.id;
+
+  const proposeA = await request(app)
+    .post('/api/equipment/' + equipmentA + '/deal')
+    .set('Authorization', 'Bearer ' + otherParty.token)
+    .send({ dealType: 'rent' });
+  await request(app)
+    .post('/api/equipment/deals/' + proposeA.body.item.id + '/confirm')
+    .set('Authorization', 'Bearer ' + owner.token);
+
+  const dealAStatus = await request(app)
+    .get('/api/equipment/' + equipmentA + '/deal')
+    .set('Authorization', 'Bearer ' + otherParty.token);
+  assert.equal(dealAStatus.body.item.status, 'confirmed');
+
+  // نفس الطرفين بالظبط، بس اعلان مختلف تمامًا — المفروض يبدأ من الصفر، مفيش اتفاق أصلاً
+  const createB = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Listing B - Isolation Test', category: 'accessories', listingType: 'sale', salePrice: 700 });
+  const equipmentB = createB.body.item.id;
+
+  const dealBBefore = await request(app)
+    .get('/api/equipment/' + equipmentB + '/deal')
+    .set('Authorization', 'Bearer ' + otherParty.token);
+  assert.equal(dealBBefore.body.item, null, 'no deal should pre-exist on the new listing just because these 2 users agreed on a different one');
+
+  const proposeB = await request(app)
+    .post('/api/equipment/' + equipmentB + '/deal')
+    .set('Authorization', 'Bearer ' + otherParty.token)
+    .send({ dealType: 'sale' });
+  assert.equal(proposeB.body.item.status, 'pending', 'listing B must start pending, not inherit confirmed status from listing A');
+
+  const dealAStillConfirmed = await request(app)
+    .get('/api/equipment/' + equipmentA + '/deal')
+    .set('Authorization', 'Bearer ' + otherParty.token);
+  assert.equal(dealAStillConfirmed.body.item.status, 'confirmed', 'listing A deal must be unaffected by the new proposal on listing B');
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await cleanupUser(id);

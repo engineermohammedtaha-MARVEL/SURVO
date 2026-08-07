@@ -1,3 +1,5 @@
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+
 const request = require('supertest');
 const app = require('../src/index');
 const prisma = require('../src/config/db');
@@ -36,7 +38,7 @@ async function createApprovedUser(overrides = {}) {
     throw new Error('فشل تسجيل دخول مستخدم اختباري بعد الموافقة: ' + loginRes.body.message);
   }
 
-  return { id: userId, token: loginRes.body.token, phone: payload.phone, email: payload.email };
+  return { id: userId, token: loginRes.body.token, phone: payload.phone, email: payload.email, fullName: payload.fullName };
 }
 
 // بيعمل حساب أدمن اختباري (isAdmin: true) ويرجع توكن جاهز يُستخدم كـ Bearer
