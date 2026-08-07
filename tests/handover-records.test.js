@@ -88,9 +88,16 @@ test('handover records: create/list scoped to owner+renter, signed-photos scoped
     .set('Authorization', 'Bearer ' + renter.token);
   assert.equal(renterSignedRes.status, 200);
 
-  // لازم إشعار وصل للمالك بعد ما المستأجر وثّق التسليم
+  // لازم إشعار وصل للمالك بعد ما المستأجر وثّق التسليم — وبما إن المستأجر هو اللي استلم
+  // الجهاز (checkout)، فده "تسليم" بالنسبة للمالك (هو اللي بيدّي الجهاز)
   const ownerNotifs = await prisma.notification.findMany({ where: { userId: owner.id, targetType: 'equipment', targetId: equipmentId } });
   assert.ok(ownerNotifs.length >= 1);
+  assert.ok(ownerNotifs.some((n) => n.title === 'تم توثيق تسليم الجهاز'), 'owner should be told this was a delivery, from their side');
+
+  // وبعد ما المالك وثّق استرجاع الجهاز (checkin)، المستأجر لازم ياخد إشعار "تسليم" برضه —
+  // بما إنه هو اللي رجّع الجهاز، مش "استلام"
+  const renterNotifs = await prisma.notification.findMany({ where: { userId: renter.id, targetType: 'equipment', targetId: equipmentId } });
+  assert.ok(renterNotifs.some((n) => n.title === 'تم توثيق تسليم الجهاز'), 'renter should be told this was a delivery (of the return), from their side');
 });
 
 test('handover records: sale deals only allow a single checkout, no checkin', async () => {

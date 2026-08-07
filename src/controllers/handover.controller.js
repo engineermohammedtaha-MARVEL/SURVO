@@ -83,10 +83,16 @@ async function createHandover(req, res) {
   });
 
   const notifyUserId = req.user.id === equipment.ownerId ? otherPartyId : equipment.ownerId;
+  // "تسليم" و"استلام" بيختلفوا حسب مين اللي بيستقبل الإشعار — لو صاحب الإعلان بيدّي الجهاز
+  // (checkout) فده "تسليم" بالنسبله وهو ("استلام" بالنسبة للطرف التاني)، والعكس في الاسترجاع
+  const notifyIsOwner = notifyUserId === equipment.ownerId;
+  const eventLabel = type === 'checkout'
+    ? (notifyIsOwner ? 'تسليم' : 'استلام')
+    : (notifyIsOwner ? 'استلام' : 'تسليم');
   await prisma.notification.create({
     data: {
       userId: notifyUserId,
-      title: type === 'checkout' ? 'تم توثيق تسليم الجهاز' : 'تم توثيق استلام الجهاز',
+      title: 'تم توثيق ' + eventLabel + ' الجهاز',
       body: 'اضغط لمراجعة صور حالة الجهاز',
       targetType: 'equipment',
       targetId: equipment.id,
