@@ -8,6 +8,7 @@ const {
   remove,
   myEquipment,
   myRentals,
+  myTransactions,
   recordView,
 } = require('../controllers/equipment.controller');
 const {
@@ -27,6 +28,7 @@ const {
 router.get('/', list);
 router.get('/mine', requireAuth, myEquipment);
 router.get('/renting', requireAuth, myRentals);
+router.get('/transactions', requireAuth, myTransactions);
 router.get('/handovers/:handoverId/signed-photos', requireAuth, getSignedHandoverPhotos);
 router.get('/deals/:dealId', requireAuth, getDealById);
 router.post('/deals/:dealId/confirm', requireAuth, confirmDeal);

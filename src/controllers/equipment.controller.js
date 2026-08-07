@@ -279,4 +279,50 @@ async function myRentals(req, res) {
   res.json({ success: true, items });
 }
 
-module.exports = { list, getOne, create, update, remove, myEquipment, myRentals, recordView };
+// بيرجّع كل المعاملات (اتفاقات) اللي المستخدم طرف فيها — سواء صاحب الإعلان أو
+// الطرف التاني، بيع أو إيجار، لسه شغالة أو خلصت — عشان يقدر يرجع لتفاصيلها في أي وقت
+async function myTransactions(req, res) {
+  const deals = await prisma.deal.findMany({
+    where: { OR: [{ ownerId: req.user.id }, { otherPartyId: req.user.id }] },
+    include: {
+      equipment: { select: { id: true, title: true, category: true } },
+      owner: { select: { id: true, fullName: true } },
+      otherParty: { select: { id: true, fullName: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  const items = await Promise.all(
+    deals.map(async (deal) => {
+      const isOwner = deal.ownerId === req.user.id;
+      const counterparty = isOwner ? deal.otherParty : deal.owner;
+      let currentlyHolding = false;
+      let returned = false;
+      if (deal.status === 'confirmed' || deal.status === 'completed') {
+        const lastRecord = await prisma.handoverRecord.findFirst({
+          where: { equipmentId: deal.equipmentId, ownerId: deal.ownerId, otherPartyId: deal.otherPartyId },
+          orderBy: { createdAt: 'desc' },
+          select: { type: true },
+        });
+        currentlyHolding = !!lastRecord && lastRecord.type === 'checkout';
+        returned = !!lastRecord && lastRecord.type === 'checkin';
+      }
+      return {
+        dealId: deal.id,
+        equipment: deal.equipment,
+        counterparty,
+        isOwner,
+        dealType: deal.dealType,
+        status: deal.status,
+        currentlyHolding,
+        returned,
+        createdAt: deal.createdAt,
+        updatedAt: deal.updatedAt,
+      };
+    })
+  );
+
+  res.json({ success: true, items });
+}
+
+module.exports = { list, getOne, create, update, remove, myEquipment, myRentals, myTransactions, recordView };

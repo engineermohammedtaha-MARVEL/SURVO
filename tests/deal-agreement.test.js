@@ -429,6 +429,59 @@ test('a sale deal only needs its single handover documented before both sides ca
   assert.equal(buyerEndRes.body.item.status, 'completed');
 });
 
+test('my-transactions shows both sides every deal (sale + rent, active + cancelled) with the right role and counterparty', async () => {
+  const owner = await createApprovedUser();
+  const renter = await createApprovedUser();
+  const buyer = await createApprovedUser();
+  createdUserIds.push(owner.id, renter.id, buyer.id);
+
+  const rentEquip = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'My Transactions Rent Device', category: 'totalstation', listingType: 'rent', pricePerDay: 40 });
+  const rentEquipId = rentEquip.body.item.id;
+  const rentDeal = await request(app)
+    .post('/api/equipment/' + rentEquipId + '/deal')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ dealType: 'rent' });
+  await request(app).post('/api/equipment/deals/' + rentDeal.body.item.id + '/confirm').set('Authorization', 'Bearer ' + owner.token);
+
+  const saleEquip = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'My Transactions Sale Device', category: 'gps', listingType: 'sale', salePrice: 900 });
+  const saleEquipId = saleEquip.body.item.id;
+  const saleDeal = await request(app)
+    .post('/api/equipment/' + saleEquipId + '/deal')
+    .set('Authorization', 'Bearer ' + buyer.token)
+    .send({ dealType: 'sale' });
+  // الاتفاق ده هيتلغي — لازم يفضل ظاهر في السجل الكامل برضه
+  await request(app).post('/api/equipment/deals/' + saleDeal.body.item.id + '/cancel').set('Authorization', 'Bearer ' + owner.token);
+
+  const ownerRes = await request(app).get('/api/equipment/transactions').set('Authorization', 'Bearer ' + owner.token);
+  const ownerRent = ownerRes.body.items.find((i) => i.dealId === rentDeal.body.item.id);
+  const ownerSale = ownerRes.body.items.find((i) => i.dealId === saleDeal.body.item.id);
+  assert.ok(ownerRent, 'owner should see the rent deal in their full transaction history');
+  assert.equal(ownerRent.isOwner, true);
+  assert.equal(ownerRent.counterparty.id, renter.id);
+  assert.equal(ownerRent.dealType, 'rent');
+  assert.equal(ownerRent.status, 'confirmed');
+  assert.ok(ownerSale, 'a cancelled deal should still show up in the full history');
+  assert.equal(ownerSale.status, 'cancelled');
+
+  const renterRes = await request(app).get('/api/equipment/transactions').set('Authorization', 'Bearer ' + renter.token);
+  const renterRent = renterRes.body.items.find((i) => i.dealId === rentDeal.body.item.id);
+  assert.ok(renterRent, 'the other party should see the same deal from their side');
+  assert.equal(renterRent.isOwner, false);
+  assert.equal(renterRent.counterparty.id, owner.id);
+
+  const buyerRes = await request(app).get('/api/equipment/transactions').set('Authorization', 'Bearer ' + buyer.token);
+  const buyerSale = buyerRes.body.items.find((i) => i.dealId === saleDeal.body.item.id);
+  assert.ok(buyerSale);
+  assert.equal(buyerSale.isOwner, false);
+  assert.equal(buyerSale.counterparty.id, owner.id);
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await cleanupUser(id);
