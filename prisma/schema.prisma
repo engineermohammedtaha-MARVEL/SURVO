@@ -106,6 +106,7 @@ enum DealStatus {
   pending
   confirmed
   cancelled
+  completed // الطرفين أكدوا إن المعاملة خلصت بأمان (الجهاز رجع وتوثّق استلامه للإيجار، أو تم التسليم للبيع)
 }
 
 // ============ MODELS ============
@@ -359,6 +360,8 @@ model Deal {
   proposedById        String
   ownerConfirmed      Boolean    @default(false)
   otherPartyConfirmed Boolean    @default(false)
+  ownerEnded          Boolean    @default(false) // المالك أكد إن المعاملة خلصت وعايز يقفلها بأمان
+  otherPartyEnded     Boolean    @default(false) // الطرف التاني أكد نفس الشيء — لازم الاتنين عشان تتقفل
   status              DealStatus @default(pending)
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt

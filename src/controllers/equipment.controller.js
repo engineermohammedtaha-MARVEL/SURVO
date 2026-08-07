@@ -244,4 +244,39 @@ async function myEquipment(req, res) {
   res.json({ success: true, items: withReturns });
 }
 
-module.exports = { list, getOne, create, update, remove, myEquipment, recordView };
+// بيرجّع للمستأجر كل الأجهزة اللي عنده اتفاق إيجار مؤكد عليها لسه مفيش قفل
+// نهائي للمعاملة — عشان حالة الإيجار تفضل ظاهرة له طول الوقت لحد ما يرجّع
+// الجهاز وتتقفل المعاملة بأمان من الطرفين
+async function myRentals(req, res) {
+  const deals = await prisma.deal.findMany({
+    where: { otherPartyId: req.user.id, dealType: 'rent', status: 'confirmed' },
+    include: {
+      equipment: { select: { id: true, title: true, category: true } },
+      owner: { select: { id: true, fullName: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+
+  const items = await Promise.all(
+    deals.map(async (deal) => {
+      const lastRecord = await prisma.handoverRecord.findFirst({
+        where: { equipmentId: deal.equipmentId, ownerId: deal.ownerId, otherPartyId: deal.otherPartyId },
+        orderBy: { createdAt: 'desc' },
+        select: { type: true },
+      });
+      return {
+        dealId: deal.id,
+        equipment: deal.equipment,
+        owner: deal.owner,
+        currentlyHolding: !!lastRecord && lastRecord.type === 'checkout',
+        returned: !!lastRecord && lastRecord.type === 'checkin',
+        ownerEnded: deal.ownerEnded,
+        otherPartyEnded: deal.otherPartyEnded,
+      };
+    })
+  );
+
+  res.json({ success: true, items });
+}
+
+module.exports = { list, getOne, create, update, remove, myEquipment, myRentals, recordView };

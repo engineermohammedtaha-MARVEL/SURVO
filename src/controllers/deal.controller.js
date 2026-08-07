@@ -41,6 +41,8 @@ async function proposeDeal(req, res) {
     proposedById: req.user.id,
     ownerConfirmed: isOwner,
     otherPartyConfirmed: !isOwner,
+    ownerEnded: false,
+    otherPartyEnded: false,
     status: 'pending',
   };
 
@@ -137,6 +139,70 @@ async function cancelDeal(req, res) {
   res.json({ success: true, item: updated });
 }
 
+// بيقفل المعاملة بأمان بعد ما الجهاز يرجع (إيجار) أو يتسلم (بيع) — محتاج تأكيد الطرفين
+// زي بالظبط اقتراح/تأكيد الاتفاق، عشان محدش يقدر يقفل المعاملة من غير رضا التاني
+async function endDeal(req, res) {
+  const deal = await prisma.deal.findUnique({
+    where: { id: req.params.dealId },
+    include: { equipment: { select: { title: true } } },
+  });
+  if (!deal) throw new ApiError(404, 'الاتفاق غير موجود');
+  if (req.user.id !== deal.ownerId && req.user.id !== deal.otherPartyId) throw new ApiError(403, 'مش طرف في الاتفاق ده');
+  if (deal.status === 'completed') return res.json({ success: true, item: deal });
+  if (deal.status !== 'confirmed') throw new ApiError(400, 'المعاملة دي لسه مش متفق عليها، مفيش حاجة تتقفل');
+
+  const lastRecord = await prisma.handoverRecord.findFirst({
+    where: { equipmentId: deal.equipmentId, ownerId: deal.ownerId, otherPartyId: deal.otherPartyId },
+    orderBy: { createdAt: 'desc' },
+    select: { type: true },
+  });
+  if (!lastRecord) {
+    throw new ApiError(400, 'لسه محدش وثّق تسليم الجهاز — وثقوا التسليم الأول قبل ما تقفلوا المعاملة');
+  }
+  if (deal.dealType === 'rent' && lastRecord.type === 'checkout') {
+    throw new ApiError(400, 'الجهاز لسه عند الطرف التاني — لازم يترجع ويتوثق استلامه الأول قبل إنهاء المعاملة');
+  }
+
+  const isOwner = req.user.id === deal.ownerId;
+  const alreadyEnded = isOwner ? deal.ownerEnded : deal.otherPartyEnded;
+  if (alreadyEnded) return res.json({ success: true, item: deal });
+
+  let updated = await prisma.deal.update({
+    where: { id: deal.id },
+    data: isOwner ? { ownerEnded: true } : { otherPartyEnded: true },
+  });
+
+  if (updated.ownerEnded && updated.otherPartyEnded) {
+    updated = await prisma.deal.update({ where: { id: deal.id }, data: { status: 'completed' } });
+    await Promise.all(
+      [deal.ownerId, deal.otherPartyId].map((userId) =>
+        prisma.notification.create({
+          data: {
+            userId,
+            title: 'تم إنهاء المعاملة بأمان ✅',
+            body: '"' + deal.equipment.title + '" — الطرفين أكدوا إن المعاملة خلصت. لو عايزين تتفقوا تاني على نفس الجهاز، تقدروا تبدأوا اتفاق جديد.',
+            targetType: 'deal',
+            targetId: deal.id,
+          },
+        })
+      )
+    ).catch(() => {});
+  } else {
+    const counterpartyId = isOwner ? deal.otherPartyId : deal.ownerId;
+    await prisma.notification.create({
+      data: {
+        userId: counterpartyId,
+        title: 'الطرف التاني عايز يقفل المعاملة',
+        body: '"' + deal.equipment.title + '" — أكد إنهاء المعاملة برضه عشان تتقفل بأمان للطرفين',
+        targetType: 'deal',
+        targetId: deal.id,
+      },
+    }).catch(() => {});
+  }
+
+  res.json({ success: true, item: updated });
+}
+
 async function getDeal(req, res) {
   const equipment = await prisma.equipment.findUnique({ where: { id: req.params.id }, select: { id: true, ownerId: true } });
   if (!equipment) throw new ApiError(404, 'الجهاز غير موجود');
@@ -160,4 +226,4 @@ async function getDealById(req, res) {
   res.json({ success: true, item: deal });
 }
 
-module.exports = { proposeDeal, confirmDeal, cancelDeal, getDeal, getDealById };
+module.exports = { proposeDeal, confirmDeal, cancelDeal, endDeal, getDeal, getDealById };

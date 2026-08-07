@@ -7,6 +7,7 @@ const {
   update,
   remove,
   myEquipment,
+  myRentals,
   recordView,
 } = require('../controllers/equipment.controller');
 const {
@@ -18,16 +19,19 @@ const {
   proposeDeal,
   confirmDeal,
   cancelDeal,
+  endDeal,
   getDeal,
   getDealById,
 } = require('../controllers/deal.controller');
 
 router.get('/', list);
 router.get('/mine', requireAuth, myEquipment);
+router.get('/renting', requireAuth, myRentals);
 router.get('/handovers/:handoverId/signed-photos', requireAuth, getSignedHandoverPhotos);
 router.get('/deals/:dealId', requireAuth, getDealById);
 router.post('/deals/:dealId/confirm', requireAuth, confirmDeal);
 router.post('/deals/:dealId/cancel', requireAuth, cancelDeal);
+router.post('/deals/:dealId/end', requireAuth, endDeal);
 router.get('/:id/handovers', requireAuth, listHandovers);
 router.post('/:id/handovers', requireAuth, createHandover);
 router.get('/:id/deal', requireAuth, getDeal);

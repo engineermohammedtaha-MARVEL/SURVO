@@ -265,6 +265,114 @@ test('two users who already have a deal on one listing get a fully separate deal
   assert.equal(dealAStillConfirmed.body.item.status, 'confirmed', 'listing A deal must be unaffected by the new proposal on listing B');
 });
 
+test('ending a rent deal needs the device returned first and mutual confirmation from both sides', async () => {
+  const owner = await createApprovedUser();
+  const renter = await createApprovedUser();
+  createdUserIds.push(owner.id, renter.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'End Deal Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 35 });
+  const equipmentId = createRes.body.item.id;
+
+  const proposeRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ dealType: 'rent' });
+  const dealId = proposeRes.body.item.id;
+  await request(app).post('/api/equipment/deals/' + dealId + '/confirm').set('Authorization', 'Bearer ' + owner.token);
+
+  // مفيش تسليم اتوثّق لسه — مينفعش تتقفل المعاملة
+  const noHandoverEndRes = await request(app)
+    .post('/api/equipment/deals/' + dealId + '/end')
+    .set('Authorization', 'Bearer ' + owner.token);
+  assert.equal(noHandoverEndRes.status, 400);
+
+  await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ type: 'checkout', photos: [FAKE_PHOTO] });
+
+  // الجهاز لسه عند المستأجر — مينفعش تتقفل المعاملة برضه
+  const stillOutEndRes = await request(app)
+    .post('/api/equipment/deals/' + dealId + '/end')
+    .set('Authorization', 'Bearer ' + owner.token);
+  assert.equal(stillOutEndRes.status, 400);
+
+  await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ type: 'checkin', photos: [FAKE_PHOTO], otherPartyId: renter.id });
+
+  // دلوقتي المالك يقدر يطلب إنهاء المعاملة — بس لسه محتاج تأكيد المستأجر
+  const ownerEndRes = await request(app)
+    .post('/api/equipment/deals/' + dealId + '/end')
+    .set('Authorization', 'Bearer ' + owner.token);
+  assert.equal(ownerEndRes.status, 200);
+  assert.equal(ownerEndRes.body.item.ownerEnded, true);
+  assert.equal(ownerEndRes.body.item.status, 'confirmed', 'still needs the other side to confirm too');
+
+  const renterEndRes = await request(app)
+    .post('/api/equipment/deals/' + dealId + '/end')
+    .set('Authorization', 'Bearer ' + renter.token);
+  assert.equal(renterEndRes.body.item.status, 'completed');
+
+  const bothEndedNotif = await prisma.notification.findFirst({ where: { userId: owner.id, title: { contains: 'إنهاء المعاملة بأمان' } } });
+  assert.ok(bothEndedNotif, 'both parties should be notified once the deal is safely closed');
+
+  // بعد ما المعاملة اتقفلت، التوثيق ميشتغلش تاني من غير اتفاق جديد
+  const blockedAfterCompleteRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ type: 'checkout', photos: [FAKE_PHOTO] });
+  assert.equal(blockedAfterCompleteRes.status, 403);
+});
+
+test('my-rentals list shows the renter their ongoing deals until the transaction is safely ended', async () => {
+  const owner = await createApprovedUser();
+  const renter = await createApprovedUser();
+  createdUserIds.push(owner.id, renter.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'My Rentals Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 45 });
+  const equipmentId = createRes.body.item.id;
+
+  const proposeRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ dealType: 'rent' });
+  const dealId = proposeRes.body.item.id;
+  await request(app).post('/api/equipment/deals/' + dealId + '/confirm').set('Authorization', 'Bearer ' + owner.token);
+
+  const beforeRes = await request(app).get('/api/equipment/renting').set('Authorization', 'Bearer ' + renter.token);
+  const beforeItem = beforeRes.body.items.find((i) => i.dealId === dealId);
+  assert.ok(beforeItem, 'confirmed rent deal should show up right away, before any handover');
+  assert.equal(beforeItem.currentlyHolding, false);
+
+  await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + renter.token)
+    .send({ type: 'checkout', photos: [FAKE_PHOTO] });
+
+  const afterCheckoutRes = await request(app).get('/api/equipment/renting').set('Authorization', 'Bearer ' + renter.token);
+  const afterCheckoutItem = afterCheckoutRes.body.items.find((i) => i.dealId === dealId);
+  assert.equal(afterCheckoutItem.currentlyHolding, true);
+  assert.equal(afterCheckoutItem.owner.id, owner.id);
+
+  await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ type: 'checkin', photos: [FAKE_PHOTO], otherPartyId: renter.id });
+  await request(app).post('/api/equipment/deals/' + dealId + '/end').set('Authorization', 'Bearer ' + owner.token);
+  await request(app).post('/api/equipment/deals/' + dealId + '/end').set('Authorization', 'Bearer ' + renter.token);
+
+  const afterCompleteRes = await request(app).get('/api/equipment/renting').set('Authorization', 'Bearer ' + renter.token);
+  assert.ok(!afterCompleteRes.body.items.find((i) => i.dealId === dealId), 'a safely-ended deal should drop off the active rentals list');
+});
+
 after(async () => {
   for (const id of createdUserIds) {
     await cleanupUser(id);
