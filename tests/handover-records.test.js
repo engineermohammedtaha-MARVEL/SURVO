@@ -14,7 +14,7 @@ test('handover records: create/list scoped to owner+renter, signed-photos scoped
   const createRes = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'Handover Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 30 });
+    .send({ title: 'Handover Test Device', category: 'totalstation', listingType: 'rent', pricePerDay: 30 });
   const equipmentId = createRes.body.item.id;
 
   // خدمة التوثيق متفعّلتش إلا بعد ما الطرفين يتفقوا ويأكدوا نوع الصفقة (اتفاق إيجار هنا)
@@ -101,7 +101,7 @@ test('handover records: sale deals only allow a single checkout, no checkin', as
   const createRes = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'Sale Handover Test Device', category: 'accessories', listingType: 'sale', salePrice: 500 });
+    .send({ title: 'Sale Handover Test Device', category: 'totalstation', listingType: 'sale', salePrice: 500 });
   const equipmentId = createRes.body.item.id;
 
   const proposeRes = await request(app)
@@ -139,7 +139,7 @@ test('my-equipment list flags a device as pending return while it is checked out
   const createRes = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'Pending Return Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 40 });
+    .send({ title: 'Pending Return Test Device', category: 'totalstation', listingType: 'rent', pricePerDay: 40 });
   const equipmentId = createRes.body.item.id;
 
   const proposeRes = await request(app)

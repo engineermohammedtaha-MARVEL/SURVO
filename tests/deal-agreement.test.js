@@ -14,7 +14,7 @@ test('deal agreement gates the handover documentation service until both sides c
   const createRes = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'Deal Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 20 });
+    .send({ title: 'Deal Test Device', category: 'totalstation', listingType: 'rent', pricePerDay: 20 });
   const equipmentId = createRes.body.item.id;
 
   // مفيش اتفاق لسه — التوثيق لازم يترفض
@@ -105,7 +105,7 @@ test('deal notifications point at targetType "deal" so either party can jump str
   const createRes = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'Notification Target Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 15 });
+    .send({ title: 'Notification Target Test Device', category: 'totalstation', listingType: 'rent', pricePerDay: 15 });
   const equipmentId = createRes.body.item.id;
 
   // الطرف التاني (المستأجر) بيقترح الاتفاق — الإشعار المفروض يوصل للمالك
@@ -203,7 +203,7 @@ test('deal proposal notification names the proposer, not just the equipment', as
   const createRes = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'Proposer Name Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 25 });
+    .send({ title: 'Proposer Name Test Device', category: 'totalstation', listingType: 'rent', pricePerDay: 25 });
   const equipmentId = createRes.body.item.id;
 
   await request(app)
@@ -225,7 +225,7 @@ test('two users who already have a deal on one listing get a fully separate deal
   const createA = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'Listing A - Isolation Test', category: 'accessories', listingType: 'rent', pricePerDay: 30 });
+    .send({ title: 'Listing A - Isolation Test', category: 'totalstation', listingType: 'rent', pricePerDay: 30 });
   const equipmentA = createA.body.item.id;
 
   const proposeA = await request(app)
@@ -245,7 +245,7 @@ test('two users who already have a deal on one listing get a fully separate deal
   const createB = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'Listing B - Isolation Test', category: 'accessories', listingType: 'sale', salePrice: 700 });
+    .send({ title: 'Listing B - Isolation Test', category: 'totalstation', listingType: 'sale', salePrice: 700 });
   const equipmentB = createB.body.item.id;
 
   const dealBBefore = await request(app)
@@ -273,7 +273,7 @@ test('ending a rent deal needs the device returned first and mutual confirmation
   const createRes = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'End Deal Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 35 });
+    .send({ title: 'End Deal Test Device', category: 'totalstation', listingType: 'rent', pricePerDay: 35 });
   const equipmentId = createRes.body.item.id;
 
   const proposeRes = await request(app)
@@ -337,7 +337,7 @@ test('my-rentals list shows the renter their ongoing deals until the transaction
   const createRes = await request(app)
     .post('/api/equipment')
     .set('Authorization', 'Bearer ' + owner.token)
-    .send({ title: 'My Rentals Test Device', category: 'accessories', listingType: 'rent', pricePerDay: 45 });
+    .send({ title: 'My Rentals Test Device', category: 'totalstation', listingType: 'rent', pricePerDay: 45 });
   const equipmentId = createRes.body.item.id;
 
   const proposeRes = await request(app)
@@ -371,6 +371,62 @@ test('my-rentals list shows the renter their ongoing deals until the transaction
 
   const afterCompleteRes = await request(app).get('/api/equipment/renting').set('Authorization', 'Bearer ' + renter.token);
   assert.ok(!afterCompleteRes.body.items.find((i) => i.dealId === dealId), 'a safely-ended deal should drop off the active rentals list');
+});
+
+test('accessories are excluded from the deal/handover-documentation service entirely', async () => {
+  const owner = await createApprovedUser();
+  const other = await createApprovedUser();
+  createdUserIds.push(owner.id, other.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Accessory Deal Block Test', category: 'accessories', listingType: 'rent', pricePerDay: 20 });
+  const equipmentId = createRes.body.item.id;
+
+  const proposeRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + other.token)
+    .send({ dealType: 'rent' });
+  assert.equal(proposeRes.status, 400, 'accessories should not be able to start a deal at all');
+});
+
+test('a sale deal only needs its single handover documented before both sides can safely end it — no return required', async () => {
+  const owner = await createApprovedUser();
+  const buyer = await createApprovedUser();
+  createdUserIds.push(owner.id, buyer.id);
+
+  const createRes = await request(app)
+    .post('/api/equipment')
+    .set('Authorization', 'Bearer ' + owner.token)
+    .send({ title: 'Sale End-Deal Test Device', category: 'totalstation', listingType: 'sale', salePrice: 1200 });
+  const equipmentId = createRes.body.item.id;
+
+  const proposeRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/deal')
+    .set('Authorization', 'Bearer ' + buyer.token)
+    .send({ dealType: 'sale' });
+  const dealId = proposeRes.body.item.id;
+  await request(app).post('/api/equipment/deals/' + dealId + '/confirm').set('Authorization', 'Bearer ' + owner.token);
+
+  // مفيش تسليم اتوثّق لسه — مينفعش تتقفل المعاملة
+  const tooEarlyEndRes = await request(app).post('/api/equipment/deals/' + dealId + '/end').set('Authorization', 'Bearer ' + owner.token);
+  assert.equal(tooEarlyEndRes.status, 400);
+
+  // تسليم واحد بس — صفقات البيع مالهاش استلام رجوع
+  const handoverRes = await request(app)
+    .post('/api/equipment/' + equipmentId + '/handovers')
+    .set('Authorization', 'Bearer ' + buyer.token)
+    .send({ type: 'checkout', photos: [FAKE_PHOTO] });
+  assert.equal(handoverRes.status, 201);
+
+  // دلوقتي الطرفين يقدروا يقفلوا المعاملة على طول — من غير أي "استلام رجوع" زي الإيجار
+  const ownerEndRes = await request(app).post('/api/equipment/deals/' + dealId + '/end').set('Authorization', 'Bearer ' + owner.token);
+  assert.equal(ownerEndRes.status, 200);
+  assert.equal(ownerEndRes.body.item.status, 'confirmed');
+
+  const buyerEndRes = await request(app).post('/api/equipment/deals/' + dealId + '/end').set('Authorization', 'Bearer ' + buyer.token);
+  assert.equal(buyerEndRes.body.item.status, 'completed');
 });
 
 after(async () => {

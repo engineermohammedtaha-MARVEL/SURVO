@@ -8,8 +8,12 @@ function dealTypeLabel(dealType) {
 // بيقترح (أو يعيد اقتراح) اتفاق على نوع الصفقة بين المالك والطرف التاني — لازم
 // يتأكد الطرفين قبل ما تتفعل خدمة توثيق حالة الجهاز بينهم
 async function proposeDeal(req, res) {
-  const equipment = await prisma.equipment.findUnique({ where: { id: req.params.id }, select: { id: true, ownerId: true, title: true } });
+  const equipment = await prisma.equipment.findUnique({ where: { id: req.params.id }, select: { id: true, ownerId: true, title: true, category: true } });
   if (!equipment) throw new ApiError(404, 'الجهاز غير موجود');
+  // خدمة الاتفاق وتوثيق الاستلام/التسليم خاصة بالأجهزة بس — الاكسسوارات معاملتها أبسط (تواصل مباشر)
+  if (equipment.category === 'accessories') {
+    throw new ApiError(400, 'الاكسسوارات مش محتاجة اتفاق أو توثيق استلام/تسليم — تواصل مباشرة مع صاحب الإعلان');
+  }
 
   const isOwner = req.user.id === equipment.ownerId;
   let otherPartyId;
